@@ -1,4 +1,9 @@
 import 'reflect-metadata';
+// Polyfill WebSocket for Node.js < 22 (needed by @supabase/supabase-js)
+import WebSocket from 'ws';
+if (!('WebSocket' in globalThis)) {
+  (globalThis as unknown as Record<string, unknown>)['WebSocket'] = WebSocket;
+}
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
