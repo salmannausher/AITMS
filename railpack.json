@@ -1,19 +1,13 @@
 {
-  "providers": {
-    "node": {
-      "install": {
-        "cmds": ["pnpm install --frozen-lockfile"]
-      },
-      "build": {
-        "cmds": [
-          "pnpm --filter @aitms/api db:generate",
-          "pnpm --filter @aitms/shared build",
-          "pnpm --filter @aitms/api build"
-        ]
-      },
-      "start": {
-        "cmd": "node apps/api/dist/main.js"
-      }
-    }
+  "build": {
+    "cmds": [
+      "pnpm install --frozen-lockfile",
+      "pnpm --filter @aitms/api db:generate",
+      "pnpm --filter @aitms/shared build",
+      "pnpm --filter @aitms/api build"
+    ]
+  },
+  "start": {
+    "cmd": "node apps/api/dist/main.js"
   }
 }
