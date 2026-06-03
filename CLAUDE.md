@@ -76,9 +76,20 @@ That loop. Nothing else. Ship that first.
 
 ## Behavioral Guidelines
 
-> Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+> Behavioral guidelines to reduce common LLM coding mistakes.
 >
-> Tradeoff: These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+> **These rules are non-negotiable unless the user explicitly grants an exception.**
+
+### 0. Rule Enforcement
+
+- Follow ALL rules below on every single response — no exceptions unless the user says so.
+- Do NOT ask for permission to follow the rules. Just follow them.
+- If a task cannot be completed within the rules (e.g. a CLI is non-interactive, a config format is unclear):
+  1. Try a different approach once.
+  2. Try a second different approach once.
+  3. If still stuck after 2 attempts — stop. Explain exactly what failed and give the user manual steps to do it themselves. Do NOT attempt a third automated approach.
+- Never modify `CLAUDE.md` unless explicitly asked by the user.
+- Never touch `.env` files, `prisma/migrations/`, or security-sensitive config unless explicitly asked.
 
 ### 1. Think Before Coding
 
