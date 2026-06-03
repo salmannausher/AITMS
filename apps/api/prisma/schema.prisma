@@ -1,0 +1,325 @@
+// ============================================================
+// Devsphinx AI Dispatch — Prisma Schema
+// Database: PostgreSQL (Supabase)
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum SubscriptionTier {
+  FREE
+  STARTER
+  GROWTH
+  ENTERPRISE
+}
+
+enum UserRole {
+  OWNER
+  DISPATCHER
+  VIEWER
+}
+
+enum DriverStatus {
+  AVAILABLE
+  ON_LOAD
+  OFF_DUTY
+  SLEEPER_BERTH
+  INACTIVE
+}
+
+enum TruckType {
+  DRY_VAN
+  REEFER
+  FLATBED
+  STEP_DECK
+}
+
+enum TruckStatus {
+  AVAILABLE
+  IN_USE
+  IN_MAINTENANCE
+  OUT_OF_SERVICE
+}
+
+enum LoadStatus {
+  PENDING
+  SCORED
+  ACCEPTED
+  ASSIGNED
+  AT_PICKUP
+  LOADED
+  EN_ROUTE
+  DELIVERED
+  INVOICED
+  PAID
+  CANCELLED
+}
+
+enum AiScore {
+  GOOD
+  MARGINAL
+  AVOID
+}
+
+enum LoadSource {
+  EMAIL
+  DAT
+  MANUAL
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageChannel {
+  WHATSAPP
+  SMS
+  EMAIL
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum AiTaskStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+// ============================================================
+// MODELS
+// ============================================================
+
+model Company {
+  id                String           @id @default(uuid())
+  name              String
+  mc_number         String?
+  dot_number        String?
+  address           Json             @default("{}")
+  settings          Json             @default("{}")
+  subscription_tier SubscriptionTier @default(FREE)
+  created_at        DateTime         @default(now())
+  updated_at        DateTime         @updatedAt
+  deleted_at        DateTime?
+
+  users    User[]
+  drivers  Driver[]
+  trucks   Truck[]
+  brokers  Broker[]
+  loads    Load[]
+  messages Message[]
+  ai_tasks AiTask[]
+
+  @@map("companies")
+}
+
+model User {
+  id         String    @id @default(uuid())
+  company_id String
+  email      String    @unique
+  full_name  String
+  role       UserRole  @default(DISPATCHER)
+  phone      String?
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
+
+  company Company @relation(fields: [company_id], references: [id])
+
+  @@index([company_id])
+  @@map("users")
+}
+
+model Driver {
+  id                  String       @id @default(uuid())
+  company_id          String
+  full_name           String
+  phone               String
+  whatsapp_phone      String?
+  cdl_class           String
+  endorsements        String[]     @default([])
+  home_city           String?
+  home_state          String?
+  current_location    Json?
+  hos_remaining_hours Decimal      @default(11) @db.Decimal(4, 2)
+  hos_reset_at        DateTime?
+  status              DriverStatus @default(AVAILABLE)
+  created_at          DateTime     @default(now())
+  updated_at          DateTime     @updatedAt
+  deleted_at          DateTime?
+
+  company        Company @relation(fields: [company_id], references: [id])
+  assigned_truck Truck?
+  assigned_loads Load[]
+
+  @@index([company_id, status])
+  @@map("drivers")
+}
+
+model Truck {
+  id                 String      @id @default(uuid())
+  company_id         String
+  unit_number        String
+  type               TruckType
+  year               Int
+  make               String
+  model              String
+  vin                String?
+  status             TruckStatus @default(AVAILABLE)
+  assigned_driver_id String?     @unique
+  created_at         DateTime    @default(now())
+  updated_at         DateTime    @updatedAt
+
+  company         Company @relation(fields: [company_id], references: [id])
+  assigned_driver Driver? @relation(fields: [assigned_driver_id], references: [id])
+  assigned_loads  Load[]
+
+  @@index([company_id, status])
+  @@map("trucks")
+}
+
+model Broker {
+  id            String   @id @default(uuid())
+  company_id    String
+  name          String
+  mc_number     String?
+  email_domains String[] @default([])
+  contacts      Json     @default("[]")
+  payment_terms Int      @default(30)
+  blacklisted   Boolean  @default(false)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  company Company @relation(fields: [company_id], references: [id])
+  loads   Load[]
+
+  @@index([company_id])
+  @@map("brokers")
+}
+
+model Load {
+  id                 String     @id @default(uuid())
+  company_id         String
+  broker_id          String?
+  reference_number   String?
+  origin_city        String
+  origin_state       String
+  dest_city          String
+  dest_state         String
+  pickup_date        DateTime
+  delivery_date      DateTime
+  load_type          String
+  weight             Int?
+  commodity          String?
+  rate               Decimal    @db.Decimal(10, 2)
+  rpm                Decimal?   @db.Decimal(6, 4)
+  estimated_miles    Int?
+  status             LoadStatus @default(PENDING)
+  ai_score           AiScore?
+  ai_score_details   Json?
+  assigned_driver_id String?
+  assigned_truck_id  String?
+  source             LoadSource @default(EMAIL)
+  raw_email_id       String?
+  created_at         DateTime   @default(now())
+  updated_at         DateTime   @updatedAt
+  deleted_at         DateTime?
+
+  company         Company     @relation(fields: [company_id], references: [id])
+  broker          Broker?     @relation(fields: [broker_id], references: [id])
+  assigned_driver Driver?     @relation(fields: [assigned_driver_id], references: [id])
+  assigned_truck  Truck?      @relation(fields: [assigned_truck_id], references: [id])
+  events          LoadEvent[]
+  messages        Message[]
+
+  @@index([company_id, status])
+  @@index([pickup_date])
+  @@index([company_id, broker_id])
+  @@map("loads")
+}
+
+model LoadEvent {
+  id          String   @id @default(uuid())
+  load_id     String
+  event_type  String
+  from_status String?
+  to_status   String?
+  actor_type  String
+  actor_id    String?
+  metadata    Json     @default("{}")
+  created_at  DateTime @default(now())
+
+  load Load @relation(fields: [load_id], references: [id])
+
+  @@index([load_id])
+  @@map("load_events")
+}
+
+model Message {
+  id           String           @id @default(uuid())
+  company_id   String
+  load_id      String?
+  direction    MessageDirection
+  channel      MessageChannel
+  from_contact String
+  to_contact   String
+  body         String
+  media_urls   String[]         @default([])
+  ai_parsed    Json?
+  status       MessageStatus    @default(PENDING)
+  external_id  String?
+  created_at   DateTime         @default(now())
+
+  company Company @relation(fields: [company_id], references: [id])
+  load    Load?   @relation(fields: [load_id], references: [id])
+
+  @@index([company_id])
+  @@index([load_id])
+  @@index([external_id])
+  @@map("messages")
+}
+
+model AiTask {
+  id             String       @id @default(uuid())
+  company_id     String
+  agent          String
+  task_type      String
+  entity_type    String?
+  entity_id      String?
+  input          Json
+  output         Json?
+  model          String
+  input_tokens   Int          @default(0)
+  output_tokens  Int          @default(0)
+  latency_ms     Int          @default(0)
+  status         AiTaskStatus @default(PENDING)
+  error          String?
+  human_reviewed Boolean      @default(false)
+  human_override Json?
+  created_at     DateTime     @default(now())
+
+  company Company @relation(fields: [company_id], references: [id])
+
+  @@index([company_id, agent])
+  @@index([company_id, status])
+  @@index([entity_type, entity_id])
+  @@map("ai_tasks")
+}
