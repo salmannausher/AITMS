@@ -8,11 +8,7 @@ export const metadata: Metadata = {
   description: 'AI-powered Transportation Management System',
 };
 
-export default async function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const user = await getSessionUser();
 
   return (

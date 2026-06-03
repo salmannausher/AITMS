@@ -77,9 +77,7 @@ export function AuthForm({ mode, action }: AuthFormProps) {
         />
       </div>
 
-      {error && (
-        <p className="text-sm font-medium text-destructive">{error}</p>
-      )}
+      {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
       <Button type="submit" className="w-full" disabled={isPending}>
         {isPending

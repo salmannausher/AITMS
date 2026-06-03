@@ -16,11 +16,7 @@ export function SessionProvider({
   user: SessionUser | null;
   children: React.ReactNode;
 }) {
-  return (
-    <SessionContext.Provider value={{ user }}>
-      {children}
-    </SessionContext.Provider>
-  );
+  return <SessionContext.Provider value={{ user }}>{children}</SessionContext.Provider>;
 }
 
 /** Hook for Client Components to read the session user. */

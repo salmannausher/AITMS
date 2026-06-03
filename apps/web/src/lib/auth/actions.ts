@@ -37,19 +37,16 @@ export async function signup(formData: FormData) {
   }
 
   // Call API to create Company + User records and set JWT custom claims
-  const res = await fetch(
-    `${process.env['NEXT_PUBLIC_API_URL']}/companies/onboard`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        auth_user_id: data.user.id,
-        email,
-        full_name: fullName,
-        company_name: companyName,
-      }),
-    },
-  );
+  const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/companies/onboard`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      auth_user_id: data.user.id,
+      email,
+      full_name: fullName,
+      company_name: companyName,
+    }),
+  });
 
   if (!res.ok) {
     // Clean up the orphaned auth user if onboarding fails
