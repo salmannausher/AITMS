@@ -1,6 +1,7 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { type Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { OnboardCompanyDto } from './dto/onboard-company.dto';
 
@@ -22,7 +23,7 @@ export class CompaniesService {
 
   async onboard(dto: OnboardCompanyDto) {
     // Create Company + User in a single transaction
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const company = await tx.company.create({
         data: { name: dto.company_name },
       });
