@@ -8,5 +8,8 @@
   },
   "start": {
     "cmd": "node apps/api/dist/main.js"
+  },
+  "variables": {
+    "NODE_VERSION": "20"
   }
 }
