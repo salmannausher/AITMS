@@ -2,7 +2,6 @@
   "build": {
     "cmds": [
       "pnpm install --frozen-lockfile",
-      "cd apps/api && npx prisma generate && cd ../..",
       "pnpm --filter @aitms/shared build",
       "pnpm --filter @aitms/api build"
     ]
