@@ -347,3 +347,45 @@ The MVP is done when ALL of the following are true:
 - [ ] Sentry capturing errors in both apps
 - [ ] First customer demo completed
 - [ ] First $300/month invoice sent
+
+---
+
+## Current Session State
+> Last updated: June 2026 — update this section at the end of every session.
+
+### Week 1 Gate Status
+| Task | Status |
+|---|---|
+| `pnpm dev` starts web + api without errors | ✅ Done |
+| `prisma migrate deploy` succeeds against Supabase | ✅ Done — `init_schema` migration applied |
+| Login/signup works end-to-end | ✅ Done — tested locally |
+| CI pipeline passes on a test PR | ⏳ Blocked — GitHub account billing issue |
+| Both apps deployed to staging | ✅ Web live — Railway API in progress |
+
+### Staging URLs
+- **Web (Vercel):** https://aitms-web.vercel.app
+- **API (Railway):** pending — Railway project `amused-integrity`, deploying
+
+### Railway Deploy Status
+- Multiple crash-fix iterations completed
+- Current blocker: `@supabase/supabase-js` requires WebSocket on Node < 22
+- Fix applied: `globalThis.WebSocket` polyfill via `ws` package in `apps/api/src/main.ts`
+- `NODE_VERSION=20` set as Railway env var
+- Latest deploy ID: `2ae80ecf` — awaiting result
+
+### What's Next (Week 2)
+1. Confirm Railway API is running — get public URL
+2. Update `NEXT_PUBLIC_API_URL` on Vercel to Railway URL
+3. Test signup end-to-end on staging
+4. Build **Intake Agent** — `apps/api/src/intake/` module:
+   - `POST /intake/email` webhook (SendGrid inbound parse)
+   - Claude parses email → extracts load fields
+   - Creates `Load` record with status `PENDING`
+5. Build **Rate Analysis Agent** — auto-scores load on creation
+
+### Key Decisions Made
+- Supabase new-format keys (`sb_publishable_` / `sb_secret_`) used — not legacy JWT keys
+- Railway project name: `amused-integrity` (auto-generated)
+- Vercel project name: `aitms-web` linked at monorepo root
+- `prisma generate` runs inside `pnpm --filter @aitms/api build` script
+- `ws` package added to `@aitms/api` for Node 18/20 WebSocket polyfill
