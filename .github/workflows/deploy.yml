@@ -7,14 +7,11 @@ on:
 
 concurrency:
   group: deploy-production
-  cancel-in-progress: false  # never cancel an in-flight deploy
+  cancel-in-progress: false
 
 jobs:
-  # ─────────────────────────────────────────────
-  # 1. Deploy apps/web → Vercel
-  # ─────────────────────────────────────────────
   deploy-web:
-    name: Deploy Web → Vercel
+    name: Deploy Web to Vercel
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: production
@@ -23,27 +20,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
-          run_install: false
 
-      - name: Get pnpm store path
-        id: pnpm-cache
-        run: echo "store=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - name: Cache pnpm store
-        uses: actions/cache@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          path: ${{ steps.pnpm-cache.outputs.store }}
-          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: pnpm-${{ runner.os }}-
+          node-version: 22
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -70,20 +56,16 @@ jobs:
       - name: Notify on failure
         if: failure()
         run: |
-          echo "::error::Web deploy to Vercel failed on commit ${{ github.sha }}"
           gh issue create \
-            --title "🚨 Web deploy failed — ${{ github.sha }}" \
-            --body "Vercel deploy failed on merge to main.\n\nCommit: ${{ github.sha }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --title "Web deploy failed - ${{ github.sha }}" \
+            --body "Vercel deploy failed on merge to main. Commit: ${{ github.sha }} Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             --label "bug" \
           || echo "Could not create issue — check Actions logs"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # ─────────────────────────────────────────────
-  # 2. Deploy apps/api → Railway + migrate DB
-  # ─────────────────────────────────────────────
   deploy-api:
-    name: Deploy API → Railway
+    name: Deploy API to Railway
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: production
@@ -92,27 +74,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
-          run_install: false
 
-      - name: Get pnpm store path
-        id: pnpm-cache
-        run: echo "store=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - name: Cache pnpm store
-        uses: actions/cache@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          path: ${{ steps.pnpm-cache.outputs.store }}
-          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: pnpm-${{ runner.os }}-
+          node-version: 22
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -138,10 +109,9 @@ jobs:
       - name: Notify on failure
         if: failure()
         run: |
-          echo "::error::API deploy to Railway failed on commit ${{ github.sha }}"
           gh issue create \
-            --title "🚨 API deploy failed — ${{ github.sha }}" \
-            --body "Railway deploy failed on merge to main.\n\nCommit: ${{ github.sha }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --title "API deploy failed - ${{ github.sha }}" \
+            --body "Railway deploy failed on merge to main. Commit: ${{ github.sha }} Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             --label "bug" \
           || echo "Could not create issue — check Actions logs"
         env:
