@@ -2,6 +2,7 @@ import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { type Prisma } from '@prisma/client';
+import WebSocket from 'ws';
 import { PrismaService } from '../prisma/prisma.service';
 import { OnboardCompanyDto } from './dto/onboard-company.dto';
 
@@ -17,7 +18,10 @@ export class CompaniesService {
     this.supabaseAdmin = createClient(
       this.config.getOrThrow<string>('SUPABASE_URL'),
       this.config.getOrThrow<string>('SUPABASE_SERVICE_KEY'),
-      { auth: { autoRefreshToken: false, persistSession: false } },
+      {
+        auth: { autoRefreshToken: false, persistSession: false },
+        realtime: { transport: WebSocket },
+      },
     );
   }
 
