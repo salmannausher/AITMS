@@ -14,7 +14,8 @@
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
     "db:generate": "prisma generate",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "inngest:dev": "npx inngest-cli@latest dev -u http://localhost:3001/api/inngest"
   },
   "dependencies": {
     "@aitms/shared": "workspace:*",
@@ -26,6 +27,7 @@
     "@supabase/supabase-js": "^2.43.5",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "inngest": "^4.5.0",
     "prisma": "^5.15.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
