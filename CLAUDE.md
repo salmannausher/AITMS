@@ -377,13 +377,21 @@ The MVP is done when ALL of the following are true:
 - **Web (Vercel):** https://aitms-web.vercel.app
 - **API (Railway):** https://amused-integrity-production-dc29.up.railway.app
 
-### What's Next (Week 2)
-1. Build **Intake Agent** — `apps/api/src/intake/` module:
-   - `POST /intake/email` webhook (SendGrid inbound parse)
-   - Claude parses email → extracts load fields
-   - Creates `Load` record with status `PENDING`
-2. Build **Rate Analysis Agent** — auto-scores load (GOOD / MARGINAL / AVOID) on `load.created`
-3. Build **Load Board UI** — dispatcher sees scored loads in real time (Supabase Realtime)
+### Week 2 Status
+| Task | Status |
+|---|---|
+| Inngest wired up (`/api/inngest`, client, module) | ✅ Done |
+| Intake Agent — `POST /intake/email` → Load record | ⏳ Next |
+| Rate Analysis Agent — auto-score on `load.created` | ⏳ Next |
+| Load Board UI — Supabase Realtime | ⏳ Next |
+
+### Inngest Setup
+- Package: `inngest` v4 installed in `apps/api`
+- Client: `apps/api/src/inngest/inngest.client.ts` — id: `aitms-api`
+- Endpoint: `ALL /api/inngest` — no auth guard
+- Dev server: `pnpm --filter @aitms/api inngest:dev` → dashboard at http://localhost:8288
+- Functions array is empty — add Inngest functions here as agents are built
+- Production keys: `INNGEST_SIGNING_KEY` + `INNGEST_EVENT_KEY` in `.env` (blank for local dev)
 
 ### Key Decisions Made
 - Supabase new-format keys (`sb_publishable_` / `sb_secret_`) used — not legacy JWT keys
