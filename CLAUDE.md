@@ -388,6 +388,18 @@ The MVP is done when ALL of the following are true:
 ### Key Decisions Made
 - Supabase new-format keys (`sb_publishable_` / `sb_secret_`) used — not legacy JWT keys
 - Railway project name: `amused-integrity` (auto-generated)
-- Vercel project name: `aitms-web` linked at monorepo root
-- `prisma generate` runs inside `pnpm --filter @aitms/api build` script
+- Vercel project name: `aitms-web` linked at monorepo root — `.vercel/` is gitignored, re-run `vercel link --project aitms-web` in a new machine
+- `prisma generate` runs inside `pnpm --filter @aitms/api build` script (baked into `apps/api/package.json` build script)
 - `ws` package added to `@aitms/api` for Node 18/20 WebSocket polyfill
+- Supabase email confirmation disabled (dev mode) — re-enable before first real customer
+- `next@14.2.35` — upgraded from 14.2.3 due to Railway security vulnerability check (CVE-2025-55184, CVE-2025-67779)
+- `railpack.json` at monorepo root controls Railway build — do not delete
+- `vercel.json` at monorepo root controls Vercel build — do not delete
+- Node.js version: local uses nvm 24 (`nvm use 24`), Railway uses Node 20 (`NODE_VERSION=20` env var set)
+
+### Infrastructure Quick Reference
+| Service | Project | How to redeploy |
+|---|---|---|
+| Web | Vercel `aitms-web` | `vercel --prod` from repo root |
+| API | Railway `amused-integrity` | `railway up --detach` from repo root |
+| DB | Supabase `AITMS` | `pnpm --filter @aitms/api db:migrate` |
