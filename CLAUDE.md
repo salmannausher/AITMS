@@ -387,6 +387,7 @@ The MVP is done when ALL of the following are true:
 | Email ingestion — Cloudflare Worker + `POST /webhooks/email` | ✅ Done |
 | Outbound email service (Resend) — `MailService` | ✅ Done |
 | Intake Agent — parse email → Load record | ✅ Done — pending ANTHROPIC_API_KEY to test end-to-end |
+| Unit tests — WebhooksService, MailService, IntakeAgent | ✅ Done — 19/19 passing |
 | Rate Analysis Agent — auto-score on `load.created` | ⏳ Next |
 | Load Board UI — Supabase Realtime | ⏳ Next |
 
@@ -424,6 +425,16 @@ The MVP is done when ALL of the following are true:
 - InngestController updated: accepts `INNGEST_FUNCTIONS` token via `@Inject()` — handler created in constructor
 - Circular import fix: `INNGEST_FUNCTIONS` token lives in `inngest.tokens.ts` (not `inngest.module.ts`)
 - New env vars: `ANTHROPIC_API_KEY`, `INNGEST_DEV=1`, `INNGEST_EVENT_KEY=local`
+
+### Testing Setup
+- Framework: Jest + ts-jest (co-located `*.spec.ts` files)
+- Run: `pnpm --filter @aitms/api test`
+- 19 tests, 3 suites — all passing as of June 7 2026
+- Test files:
+  - `src/webhooks/webhooks.service.spec.ts` — 5 tests
+  - `src/mail/mail.service.spec.ts` — 4 tests
+  - `src/intake/intake.functions.spec.ts` — 10 tests
+- Jest config lives in `apps/api/package.json` under `"jest"` key
 
 ### Key Decisions Made
 - Supabase new-format keys (`sb_publishable_` / `sb_secret_`) used — not legacy JWT keys
