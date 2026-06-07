@@ -1,0 +1,8 @@
+name = "aitms-email-worker"
+compatibility_date = "2024-01-01"
+main = "email-worker.ts"
+workers_dev = true
+preview_urls = false
+
+# WEBHOOK_URL and WEBHOOK_SECRET are stored as Wrangler secrets (wrangler secret put)
+# Do NOT add them here — plaintext vars override secrets and get committed to git

@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm *)",
+      "Bash(npx *)",
+      "Bash(nest *)",
+      "Bash(wrangler *)",
+      "Bash(prisma *)",
+      "Bash(node *)",
+      "Bash(nvm *)",
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git add *)",
+      "Bash(git commit*)",
+      "Bash(git push*)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(mkdir *)",
+      "Bash(grep *)",
+      "Bash(find *)"
+    ]
+  }
+}

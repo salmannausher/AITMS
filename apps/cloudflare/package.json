@@ -1,0 +1,18 @@
+{
+  "name": "@aitms/cloudflare",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "postal-mime": "^2.2.4"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250525.0",
+    "wrangler": "^3.60.0",
+    "typescript": "^5.4.5"
+  }
+}

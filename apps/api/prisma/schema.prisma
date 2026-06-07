@@ -116,6 +116,7 @@ model Company {
   address           Json             @default("{}")
   settings          Json             @default("{}")
   subscription_tier SubscriptionTier @default(FREE)
+  inbound_email     String?          @unique
   created_at        DateTime         @default(now())
   updated_at        DateTime         @updatedAt
   deleted_at        DateTime?
@@ -225,14 +226,15 @@ model Load {
   dest_city          String
   dest_state         String
   pickup_date        DateTime
-  delivery_date      DateTime
-  load_type          String
+  delivery_date      DateTime?
+  load_type          String?
   weight             Int?
   commodity          String?
-  rate               Decimal    @db.Decimal(10, 2)
+  rate               Decimal?   @db.Decimal(10, 2)
   rpm                Decimal?   @db.Decimal(6, 4)
   estimated_miles    Int?
   status             LoadStatus @default(PENDING)
+  needs_review       Boolean    @default(false)
   ai_score           AiScore?
   ai_score_details   Json?
   assigned_driver_id String?

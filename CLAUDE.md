@@ -322,6 +322,9 @@ pnpm --filter api db:migrate    # Run migrations
 pnpm --filter api db:studio     # Open Prisma Studio
 pnpm --filter api db:seed       # Seed demo data
 
+# Inngest
+pnpm --filter @aitms/api inngest:dev  # Start Inngest Dev Server → http://localhost:8288
+
 # Quality
 pnpm lint                       # ESLint all packages
 pnpm typecheck                  # TypeScript check all packages
@@ -381,7 +384,9 @@ The MVP is done when ALL of the following are true:
 | Task | Status |
 |---|---|
 | Inngest wired up (`/api/inngest`, client, module) | ✅ Done |
-| Intake Agent — `POST /intake/email` → Load record | ⏳ Next |
+| Email ingestion — Cloudflare Worker + `POST /webhooks/email` | ✅ Done |
+| Outbound email service (Resend) — `MailService` | ✅ Done |
+| Intake Agent — parse email → Load record | ✅ Done — pending ANTHROPIC_API_KEY to test end-to-end |
 | Rate Analysis Agent — auto-score on `load.created` | ⏳ Next |
 | Load Board UI — Supabase Realtime | ⏳ Next |
 
@@ -390,8 +395,35 @@ The MVP is done when ALL of the following are true:
 - Client: `apps/api/src/inngest/inngest.client.ts` — id: `aitms-api`
 - Endpoint: `ALL /api/inngest` — no auth guard
 - Dev server: `pnpm --filter @aitms/api inngest:dev` → dashboard at http://localhost:8288
-- Functions array is empty — add Inngest functions here as agents are built
+- Functions registered via `INNGEST_FUNCTIONS` token in `InngestModule` — factory pattern (not NestJS class DI)
+- `INNGEST_DEV=1` must be set in `.env` for local dev (disables signing key requirement)
 - Production keys: `INNGEST_SIGNING_KEY` + `INNGEST_EVENT_KEY` in `.env` (blank for local dev)
+
+### Email Ingestion Setup
+- Cloudflare Email Worker: `apps/cloudflare/email-worker.ts` — parses inbound email with `postal-mime`, POSTs to `WEBHOOK_URL`
+- Worker deployed at: `https://aitms-email-worker.devsphinx.workers.dev`
+- Cloudflare subdomain: `devsphinx.workers.dev` (registered)
+- NestJS webhook: `POST /webhooks/email` — verifies `X-Webhook-Secret`, creates Message + Broker records, fires `load/email.received` Inngest event
+- Company routing: `inbound_email` set to `info@devsphinx.dev` on Acme Trucking LLC (company id: `29c19f12-0d3b-4c30-8c4a-1f9c2d02eb60`)
+- Migration applied: `20260604000000_add_company_inbound_email` — adds `inbound_email String? @unique` to Company
+- Resend: `MailService` in `apps/api/src/mail/` — lazy-initializes, only for auth/alert/invoice emails
+- New env vars: `WEBHOOK_SECRET` (must match Cloudflare Worker secret), `RESEND_API_KEY`
+- Domain: `devsphinx.dev` purchased on Cloudflare Registrar — MX records configured, DNS propagation pending
+- Email routing rule: `info@devsphinx.dev` → Worker `aitms-email-worker` (Active in Cloudflare dashboard)
+- Status: ⏳ DNS propagating — `NXDOMAIN` still returning as of June 7 2026, recheck in a few hours
+
+### Intake Agent Setup
+- Module: `apps/api/src/intake/` — `intake.types.ts`, `intake.functions.ts`, `intake.module.ts`
+- Pattern: factory function `createParseEmailFunction(prisma, anthropic)` — NOT a NestJS `@Injectable()`
+- Inngest function id: `parse-email` | trigger: `load/email.received` | retries: 3
+- Steps: `extract-pdf` → `claude-parse` → `create-db-records` → `trigger-scoring`
+- Model: `claude-haiku-4-5` | tool call: `create_load` | temperature: 0
+- Schema migrations applied: `20260605000000_nullable_load_fields_add_needs_review`
+  - `delivery_date`, `load_type`, `rate` now nullable on `Load`
+  - `needs_review Boolean @default(false)` added to `Load`
+- InngestController updated: accepts `INNGEST_FUNCTIONS` token via `@Inject()` — handler created in constructor
+- Circular import fix: `INNGEST_FUNCTIONS` token lives in `inngest.tokens.ts` (not `inngest.module.ts`)
+- New env vars: `ANTHROPIC_API_KEY`, `INNGEST_DEV=1`, `INNGEST_EVENT_KEY=local`
 
 ### Key Decisions Made
 - Supabase new-format keys (`sb_publishable_` / `sb_secret_`) used — not legacy JWT keys
