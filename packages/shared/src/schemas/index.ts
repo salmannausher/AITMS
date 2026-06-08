@@ -1,2 +1,1 @@
-// Add Zod schemas here
-export {};
+export * from './load.schema';

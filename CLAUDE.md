@@ -388,6 +388,7 @@ The MVP is done when ALL of the following are true:
 | Outbound email service (Resend) — `MailService` | ✅ Done |
 | Intake Agent — parse email → Load record | ✅ Done — ANTHROPIC_API_KEY added; end-to-end test pending Anthropic credit top-up |
 | Unit tests — WebhooksService, MailService, IntakeAgent | ✅ Done — 19/19 passing |
+| Manual Load Entry form — Task 2.4 | ✅ Done — tested end-to-end locally |
 | Rate Analysis Agent — auto-score on `load.created` | ⏳ Next |
 | Load Board UI — Supabase Realtime | ⏳ Next |
 
@@ -427,6 +428,23 @@ The MVP is done when ALL of the following are true:
 - InngestController updated: accepts `INNGEST_FUNCTIONS` token via `@Inject()` — handler created in constructor
 - Circular import fix: `INNGEST_FUNCTIONS` token lives in `inngest.tokens.ts` (not `inngest.module.ts`)
 - New env vars: `ANTHROPIC_API_KEY`, `INNGEST_DEV=1`, `INNGEST_EVENT_KEY=local`
+
+### Manual Load Entry Setup (Task 2.4)
+- Form: `apps/web/src/app/(dashboard)/loads/new/` — `page.tsx` + `LoadForm.tsx` (client component)
+- Auth: `apps/web/src/app/(dashboard)/layout.tsx` — checks session via `getSessionUser()`, redirects to `/login` if missing
+- Route Handlers (proxy to NestJS): `apps/web/src/app/api/loads/route.ts`, `apps/web/src/app/api/brokers/route.ts`
+- Shared: `packages/shared/src/schemas/load.schema.ts` — `createLoadSchema` + `CreateLoadInput`
+- Shared: `packages/shared/src/utils/state-distances.ts` — `getEstimatedMiles(o, d)` — used client-side for live miles/RPM preview
+- Shared: `packages/shared/src/utils/us-states.ts` — `US_STATES` constant (all 50 states)
+- API: `apps/api/src/loads/` — `LoadsModule`, `LoadsController` (`POST /loads`), `LoadsService`
+- API: `apps/api/src/brokers/` — `BrokersModule`, `BrokersController` (`GET /brokers`), `BrokersService`
+- API: `apps/api/src/common/guards/company.guard.ts` — `CompanyGuard` — validates Bearer JWT via `supabase.auth.getUser()`, sets `req.companyId`
+- New Shadcn component: `apps/web/src/components/ui/select.tsx`
+- New web deps: `react-hook-form`, `@hookform/resolvers`, `@radix-ui/react-select`
+- `@supabase/ssr` upgraded: `0.3.0` → `0.10.3` — **critical fix**: old version didn't support `sb_publishable_` key format, causing session cookies to never be written
+- `DATABASE_URL` must have `?pgbouncer=true` appended — required for Prisma `$transaction` with Supabase's PgBouncer pooler
+- On submit: form POSTs to `/api/loads` (Next.js Route Handler) → forwards to NestJS with Bearer token → `LoadsService` creates Load with `source: MANUAL` + fires `load/created` Inngest event
+- Stub page: `apps/web/src/app/(dashboard)/loads/[id]/page.tsx` — redirect target after load creation
 
 ### Testing Setup
 - Framework: Jest + ts-jest (co-located `*.spec.ts` files)

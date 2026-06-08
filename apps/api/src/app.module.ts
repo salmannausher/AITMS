@@ -7,6 +7,8 @@ import { InngestModule } from './inngest/inngest.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { MailModule } from './mail/mail.module';
 import { IntakeModule } from './intake/intake.module';
+import { LoadsModule } from './loads/loads.module';
+import { BrokersModule } from './brokers/brokers.module';
 
 @Module({
   imports: [
@@ -17,6 +19,8 @@ import { IntakeModule } from './intake/intake.module';
     WebhooksModule,
     MailModule,
     IntakeModule,
+    LoadsModule,
+    BrokersModule,
   ],
   controllers: [AppController],
 })

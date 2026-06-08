@@ -54,6 +54,9 @@ export async function signup(formData: FormData) {
     return { error: 'Failed to create your account. Please try again.' };
   }
 
+  // Sign in again to get a fresh JWT with company_id + role in app_metadata
+  await supabase.auth.signInWithPassword({ email, password });
+
   redirect('/');
 }
 
