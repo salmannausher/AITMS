@@ -365,7 +365,7 @@ The MVP is done when ALL of the following are true:
 ---
 
 ## Current Session State
-> Last updated: June 2026 — update this section at the end of every session.
+> Last updated: June 8 2026 — update this section at the end of every session.
 
 ### Week 1 Gate Status
 | Task | Status |
@@ -386,7 +386,7 @@ The MVP is done when ALL of the following are true:
 | Inngest wired up (`/api/inngest`, client, module) | ✅ Done |
 | Email ingestion — Cloudflare Worker + `POST /webhooks/email` | ✅ Done |
 | Outbound email service (Resend) — `MailService` | ✅ Done |
-| Intake Agent — parse email → Load record | ✅ Done — pending ANTHROPIC_API_KEY to test end-to-end |
+| Intake Agent — parse email → Load record | ✅ Done — ANTHROPIC_API_KEY added; end-to-end test pending Anthropic credit top-up |
 | Unit tests — WebhooksService, MailService, IntakeAgent | ✅ Done — 19/19 passing |
 | Rate Analysis Agent — auto-score on `load.created` | ⏳ Next |
 | Load Board UI — Supabase Realtime | ⏳ Next |
@@ -411,14 +411,16 @@ The MVP is done when ALL of the following are true:
 - New env vars: `WEBHOOK_SECRET` (must match Cloudflare Worker secret), `RESEND_API_KEY`
 - Domain: `devsphinx.dev` purchased on Cloudflare Registrar — MX records configured, DNS propagation pending
 - Email routing rule: `info@devsphinx.dev` → Worker `aitms-email-worker` (Active in Cloudflare dashboard)
-- Status: ⏳ DNS propagating — `NXDOMAIN` still returning as of June 7 2026, recheck in a few hours
+- Status: ⏳ DNS propagating — `NXDOMAIN` still returning as of June 8 2026; email routing will work automatically once propagation completes (no code changes needed)
 
 ### Intake Agent Setup
 - Module: `apps/api/src/intake/` — `intake.types.ts`, `intake.functions.ts`, `intake.module.ts`
 - Pattern: factory function `createParseEmailFunction(prisma, anthropic)` — NOT a NestJS `@Injectable()`
 - Inngest function id: `parse-email` | trigger: `load/email.received` | retries: 3
 - Steps: `extract-pdf` → `claude-parse` → `create-db-records` → `trigger-scoring`
-- Model: `claude-haiku-4-5` | tool call: `create_load` | temperature: 0
+- Model: `claude-haiku-4-5` for text-only; auto-upgrades to `claude-sonnet-4-5` when fallback PDF document blocks are present
+- PDF fallback: if `pdf-parse` throws or returns <50 chars, attachment goes into `claudeDocuments[]` and is sent as a native Claude `document` block (base64 PDF) — `claude-haiku-4-5` does NOT support document blocks, hence the model upgrade
+- tool call: `create_load` | temperature: 0
 - Schema migrations applied: `20260605000000_nullable_load_fields_add_needs_review`
   - `delivery_date`, `load_type`, `rate` now nullable on `Load`
   - `needs_review Boolean @default(false)` added to `Load`

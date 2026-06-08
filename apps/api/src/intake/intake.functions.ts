@@ -89,39 +89,76 @@ export function createParseEmailFunction(
       } = event.data as ParseEmailEventData;
 
       // ── Step 1: Extract PDF text ────────────────────────────────────────
-      const pdfText = await step.run('extract-pdf', async () => {
-        const pdfAttachments = attachments.filter(
-          (a) => a.mimeType === 'application/pdf',
-        );
-        if (pdfAttachments.length === 0) return '';
-
-        const texts: string[] = [];
-        for (const attachment of pdfAttachments) {
-          try {
-            const buffer = Buffer.from(attachment.data, 'base64');
-            const result = await pdfParse(buffer);
-            texts.push(result.text);
-          } catch (err) {
-            logger.warn(
-              `Failed to parse PDF attachment: ${attachment.name}`,
-              err,
-            );
+      const { pdfText, claudeDocuments } = await step.run(
+        'extract-pdf',
+        async () => {
+          const pdfAttachments = attachments.filter(
+            (a) => a.mimeType === 'application/pdf',
+          );
+          if (pdfAttachments.length === 0) {
+            return { pdfText: '', claudeDocuments: [] as Array<{ name: string; dataBase64: string }> };
           }
-        }
-        return texts.join('\n\n---\n\n');
-      });
+
+          const texts: string[] = [];
+          const fallbackDocs: Array<{ name: string; dataBase64: string }> = [];
+
+          for (const attachment of pdfAttachments) {
+            try {
+              const buffer = Buffer.from(attachment.data, 'base64');
+              const result = await pdfParse(buffer);
+              if (result.text.length >= 50) {
+                texts.push(result.text);
+              } else {
+                // pdf-parse returned too little text — fall back to Claude native PDF
+                fallbackDocs.push({ name: attachment.name, dataBase64: attachment.data });
+              }
+            } catch (err) {
+              logger.warn(
+                `Failed to parse PDF attachment: ${attachment.name} — falling back to Claude document block`,
+                err,
+              );
+              fallbackDocs.push({ name: attachment.name, dataBase64: attachment.data });
+            }
+          }
+
+          return {
+            pdfText: texts.join('\n\n---\n\n'),
+            claudeDocuments: fallbackDocs,
+          };
+        },
+      );
 
       // ── Step 2: Claude parse ────────────────────────────────────────────
       const { parsed, inputTokens, outputTokens } = await step.run(
         'claude-parse',
         async () => {
-          const userMessage =
+          const textContent =
             pdfText.length > 0
               ? `RATE CONFIRMATION DOCUMENT:\n${pdfText}\n\nEMAIL BODY:\n${textBody}`
               : `EMAIL BODY:\n${textBody}\n\nSUBJECT: ${subject}\nFROM: ${fromEmail}`;
 
+          // Build content: document blocks first (native PDF), then text
+          const userContent: Anthropic.MessageParam['content'] =
+            claudeDocuments.length > 0
+              ? [
+                  ...claudeDocuments.map((doc) => ({
+                    type: 'document' as const,
+                    source: {
+                      type: 'base64' as const,
+                      media_type: 'application/pdf' as const,
+                      data: doc.dataBase64,
+                    },
+                  })),
+                  { type: 'text' as const, text: textContent },
+                ]
+              : textContent;
+
+          // claude-haiku-4-5 does not support PDF document blocks
+          const model =
+            claudeDocuments.length > 0 ? 'claude-sonnet-4-5' : 'claude-haiku-4-5';
+
           const response = await anthropic.messages.create({
-            model: 'claude-haiku-4-5',
+            model,
             max_tokens: 1024,
             temperature: 0,
             system: `You are a freight document parser for a trucking company.
@@ -130,7 +167,7 @@ Return ONLY a create_load tool call. No explanation. No commentary.
 If a field cannot be found with high confidence, set it to null.
 CRITICAL: Never invent or infer a rate not explicitly stated in the document.
 A rate must appear as a dollar amount. If no rate is visible, set rate to null.`,
-            messages: [{ role: 'user', content: userMessage }],
+            messages: [{ role: 'user', content: userContent }],
             tools: [
               {
                 name: 'create_load',
