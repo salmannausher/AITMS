@@ -389,6 +389,7 @@ The MVP is done when ALL of the following are true:
 | Intake Agent — parse email → Load record | ✅ Done — ANTHROPIC_API_KEY added; end-to-end test pending Anthropic credit top-up |
 | Unit tests — WebhooksService, MailService, IntakeAgent | ✅ Done — 19/19 passing |
 | Manual Load Entry form — Task 2.4 | ✅ Done — tested end-to-end locally |
+| OpenRouter provider adapter | ✅ Done — toggle via AI_PROVIDER env var |
 | Rate Analysis Agent — auto-score on `load.created` | ⏳ Next |
 | Load Board UI — Supabase Realtime | ⏳ Next |
 
@@ -445,6 +446,20 @@ The MVP is done when ALL of the following are true:
 - `DATABASE_URL` must have `?pgbouncer=true` appended — required for Prisma `$transaction` with Supabase's PgBouncer pooler
 - On submit: form POSTs to `/api/loads` (Next.js Route Handler) → forwards to NestJS with Bearer token → `LoadsService` creates Load with `source: MANUAL` + fires `load/created` Inngest event
 - Stub page: `apps/web/src/app/(dashboard)/loads/[id]/page.tsx` — redirect target after load creation
+
+### OpenRouter Provider Setup
+- Files: `apps/api/src/ai/` — `ai-provider.ts` (interface), `anthropic.provider.ts`, `openrouter.provider.ts`
+- Toggle via env vars in `apps/api/.env`:
+  ```
+  AI_PROVIDER=openrouter        # omit or set to anything else → uses Anthropic
+  OPENROUTER_API_KEY=sk-or-...
+  OPENROUTER_MODEL=google/gemini-flash-1.5   # or any OpenRouter model ID
+  ```
+- OpenRouter uses fetch + OpenAI-compatible API — no new npm packages
+- Free tier models (`:free` suffix) are heavily rate-limited; paid models recommended for testing
+- Native PDF document blocks (Anthropic-only) are skipped when using OpenRouter — text-only fallback
+- Intake Agent now accepts `AiProvider` interface instead of `Anthropic` directly — fully decoupled
+- To test intake without email: use Inngest Dev Server (http://localhost:8288) → Functions → `parse-email` → Send test event
 
 ### Testing Setup
 - Framework: Jest + ts-jest (co-located `*.spec.ts` files)
