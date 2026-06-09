@@ -23,7 +23,6 @@ jest.mock('pdf-parse', () =>
 import { inngest } from '../inngest/inngest.client';
 import { createParseEmailFunction } from './intake.functions';
 import { PrismaService } from '../prisma/prisma.service';
-import Anthropic from '@anthropic-ai/sdk';
 
 // ── estimateMiles — extracted via module internals ──────────────────────────
 // We test it indirectly through the RPM calculation in create-db-records.
@@ -75,10 +74,10 @@ describe('estimateMiles (via STATE_DISTANCES lookup)', () => {
 
 describe('createParseEmailFunction', () => {
   const mockPrisma = {} as PrismaService;
-  const mockAnthropic = {} as Anthropic;
+  const mockAiProvider = { parseEmail: jest.fn() };
 
   it('calls inngest.createFunction with correct id and trigger', () => {
-    createParseEmailFunction(mockPrisma, mockAnthropic);
+    createParseEmailFunction(mockPrisma, mockAiProvider);
 
     expect(inngest.createFunction).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -91,7 +90,7 @@ describe('createParseEmailFunction', () => {
   });
 
   it('returns a function object', () => {
-    const fn = createParseEmailFunction(mockPrisma, mockAnthropic);
+    const fn = createParseEmailFunction(mockPrisma, mockAiProvider);
     expect(fn).toBeDefined();
     expect(typeof fn).toBe('object');
   });

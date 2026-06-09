@@ -1,8 +1,8 @@
 import { Logger } from '@nestjs/common';
-import Anthropic from '@anthropic-ai/sdk';
 import { Prisma } from '@prisma/client';
 import { inngest } from '../inngest/inngest.client';
 import { PrismaService } from '../prisma/prisma.service';
+import { type AiProvider } from '../ai/ai-provider';
 import { type ParseEmailEventData, type ParsedLoad } from './intake.types';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -41,7 +41,7 @@ function estimateMiles(originState: string, destState: string): number {
 // ---------------------------------------------------------------------------
 export function createParseEmailFunction(
   prisma: PrismaService,
-  anthropic: Anthropic,
+  aiProvider: AiProvider,
 ) {
   return inngest.createFunction(
     {
@@ -128,122 +128,33 @@ export function createParseEmailFunction(
         },
       );
 
-      // ── Step 2: Claude parse ────────────────────────────────────────────
-      const { parsed, inputTokens, outputTokens } = await step.run(
+      // ── Step 2: AI parse (Anthropic or OpenRouter) ─────────────────────
+      const { parsed, inputTokens, outputTokens, modelUsed } = await step.run(
         'claude-parse',
         async () => {
-          const textContent =
+          const userText =
             pdfText.length > 0
               ? `RATE CONFIRMATION DOCUMENT:\n${pdfText}\n\nEMAIL BODY:\n${textBody}`
               : `EMAIL BODY:\n${textBody}\n\nSUBJECT: ${subject}\nFROM: ${fromEmail}`;
 
-          // Build content: document blocks first (native PDF), then text
-          const userContent: Anthropic.MessageParam['content'] =
-            claudeDocuments.length > 0
-              ? [
-                  ...claudeDocuments.map((doc) => ({
-                    type: 'document' as const,
-                    source: {
-                      type: 'base64' as const,
-                      media_type: 'application/pdf' as const,
-                      data: doc.dataBase64,
-                    },
-                  })),
-                  { type: 'text' as const, text: textContent },
-                ]
-              : textContent;
-
-          // claude-haiku-4-5 does not support PDF document blocks
-          const model =
-            claudeDocuments.length > 0 ? 'claude-sonnet-4-5' : 'claude-haiku-4-5';
-
-          const response = await anthropic.messages.create({
-            model,
-            max_tokens: 1024,
-            temperature: 0,
-            system: `You are a freight document parser for a trucking company.
+          const system = `You are a freight document parser for a trucking company.
 Extract structured load data from the provided broker email or rate confirmation.
 Return ONLY a create_load tool call. No explanation. No commentary.
 If a field cannot be found with high confidence, set it to null.
 CRITICAL: Never invent or infer a rate not explicitly stated in the document.
-A rate must appear as a dollar amount. If no rate is visible, set rate to null.`,
-            messages: [{ role: 'user', content: userContent }],
-            tools: [
-              {
-                name: 'create_load',
-                description:
-                  'Create a load record from the parsed document',
-                input_schema: {
-                  type: 'object' as const,
-                  required: [
-                    'origin_city',
-                    'origin_state',
-                    'dest_city',
-                    'dest_state',
-                    'pickup_date',
-                  ],
-                  properties: {
-                    origin_city: { type: 'string' as const },
-                    origin_state: {
-                      type: 'string' as const,
-                      description: '2-letter state code e.g. IL',
-                    },
-                    dest_city: { type: 'string' as const },
-                    dest_state: {
-                      type: 'string' as const,
-                      description: '2-letter state code e.g. TX',
-                    },
-                    pickup_date: {
-                      type: 'string' as const,
-                      description: 'ISO date YYYY-MM-DD',
-                    },
-                    delivery_date: {
-                      type: ['string', 'null'] as ['string', 'null'],
-                    },
-                    rate: {
-                      type: ['number', 'null'] as ['number', 'null'],
-                      description: 'Total load rate in USD',
-                    },
-                    reference_number: {
-                      type: ['string', 'null'] as ['string', 'null'],
-                    },
-                    broker_name: {
-                      type: ['string', 'null'] as ['string', 'null'],
-                    },
-                    broker_mc_number: {
-                      type: ['string', 'null'] as ['string', 'null'],
-                    },
-                    load_type: {
-                      type: ['string', 'null'] as ['string', 'null'],
-                      enum: ['DRY_VAN', 'REEFER', 'FLATBED', 'STEP_DECK', null],
-                    },
-                    weight: {
-                      type: ['number', 'null'] as ['number', 'null'],
-                    },
-                    confidence: {
-                      type: 'number' as const,
-                      minimum: 0,
-                      maximum: 1,
-                      description: 'Confidence in extraction accuracy (0-1)',
-                    },
-                  },
-                },
-              },
-            ],
-            tool_choice: { type: 'tool', name: 'create_load' },
+A rate must appear as a dollar amount. If no rate is visible, set rate to null.`;
+
+          const result = await aiProvider.parseEmail({
+            system,
+            userText,
+            claudeDocuments,
           });
 
-          const toolUse = response.content.find(
-            (b) => b.type === 'tool_use',
-          );
-          if (!toolUse || toolUse.type !== 'tool_use') {
-            throw new Error('Claude did not return a tool call');
-          }
-
           return {
-            parsed: toolUse.input as ParsedLoad,
-            inputTokens: response.usage.input_tokens,
-            outputTokens: response.usage.output_tokens,
+            parsed: result.toolInput as unknown as ParsedLoad,
+            inputTokens: result.inputTokens,
+            outputTokens: result.outputTokens,
+            modelUsed: result.modelUsed,
           };
         },
       );
@@ -327,7 +238,7 @@ A rate must appear as a dollar amount. If no rate is visible, set rate to null.`
               attachmentCount: attachments.length,
             },
             output: parsed as unknown as Prisma.InputJsonValue,
-            model: 'claude-haiku-4-5',
+            model: modelUsed,
             input_tokens: inputTokens,
             output_tokens: outputTokens,
             status: 'COMPLETED',
