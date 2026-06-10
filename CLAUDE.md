@@ -367,6 +367,37 @@ The MVP is done when ALL of the following are true:
 ## Current Session State
 > Last updated: June 10 2026 — update this section at the end of every session.
 
+### Git Workflow (adopted Week 3)
+- **Never push directly to `main`** — always work on a feature branch
+- Branch naming: `feat/task-X.Y-short-description`
+- PR flow: push branch → `gh pr create` → CI gate → squash merge to main
+- Set branch protection on `main` in GitHub (require CI status check) before next deploy
+
+### Week 3 Status
+| Task | Status |
+|---|---|
+| Task 3.1 — Carrier cost settings (schema + API + UI) | ✅ Done — branch `feat/task-3.1-carrier-cost-settings`, pushed to GitHub, PR pending |
+| Task 3.2 — Rate Analysis Agent (`load.created` → AI score) | ⏳ Next |
+| Task 3.3 — Load Board UI (Supabase Realtime) | ⏳ Next |
+| Task 3.4 — `/loads/[id]` detail page with score reasoning | ⏳ Next |
+
+### Task 3.1 — Carrier Cost Settings
+- Schema: `packages/shared/src/schemas/company-settings.schema.ts` — `carrierCostSettingsSchema` + `CarrierCostSettings`
+- DTO: `apps/api/src/companies/dto/update-cost-settings.dto.ts`
+- API: `GET /companies/settings` + `PATCH /companies/settings` added to `CompaniesController`
+  - `CompanyGuard` now also stamps `req.userRole` from JWT `app_metadata.role`
+  - PATCH requires `userRole === 'OWNER'` — returns 403 otherwise
+  - Merge strategy: `{ ...existingSettings, costs: dto }` — never overwrites sibling keys
+  - TODO comment left for cache invalidation (`company:{id}:settings`) pending Task 3.3 CacheService
+- Route handler: `apps/web/src/app/api/companies/settings/route.ts` — GET + PATCH proxy to NestJS
+- UI: `apps/web/src/app/(dashboard)/settings/costs/page.tsx` (server) + `CostSettingsForm.tsx` (client)
+  - Two shadcn Cards: "Cost Basis" and "Dispatch Rules"
+  - Live break-even calc: `cost_per_mile + fuel_cost_per_mile + driver_pay_per_mile`
+  - Amber warning when `minimum_rpm < all-in cost`
+  - Read-only with notice banner for non-OWNER roles
+  - New shadcn component: `apps/web/src/components/ui/card.tsx`
+- Typecheck: 4/4 packages pass | Tests: 19/19 pass
+
 ### Week 1 Gate Status
 | Task | Status |
 |---|---|
@@ -390,8 +421,8 @@ The MVP is done when ALL of the following are true:
 | Unit tests — WebhooksService, MailService, IntakeAgent | ✅ Done — 19/19 passing |
 | Manual Load Entry form — Task 2.4 | ✅ Done — tested end-to-end locally |
 | OpenRouter provider adapter | ✅ Done — toggle via AI_PROVIDER env var |
-| Rate Analysis Agent — auto-score on `load.created` | ⏳ Next |
-| Load Board UI — Supabase Realtime | ⏳ Next |
+| Rate Analysis Agent — auto-score on `load.created` | ⏳ Week 3 Task 3.2 |
+| Load Board UI — Supabase Realtime | ⏳ Week 3 Task 3.3 |
 
 ### Inngest Setup
 - Package: `inngest` v4 installed in `apps/api`
