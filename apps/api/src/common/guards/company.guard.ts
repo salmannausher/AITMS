@@ -8,7 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { createClient } from '@supabase/supabase-js';
 import type { Request } from 'express';
 
-export type AuthenticatedRequest = Request & { companyId: string };
+export type AuthenticatedRequest = Request & { companyId: string; userRole: string };
 
 @Injectable()
 export class CompanyGuard implements CanActivate {
@@ -44,6 +44,7 @@ export class CompanyGuard implements CanActivate {
     }
 
     req.companyId = companyId;
+    req.userRole = (user.app_metadata?.['role'] as string | undefined) ?? '';
     return true;
   }
 }

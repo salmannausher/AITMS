@@ -4,6 +4,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { type Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { OnboardCompanyDto } from './dto/onboard-company.dto';
+import { UpdateCostSettingsDto } from './dto/update-cost-settings.dto';
 
 @Injectable()
 export class CompaniesService {
@@ -62,5 +63,33 @@ export class CompaniesService {
       company_id: result.company.id,
       role: result.user.role,
     };
+  }
+
+  async getSettings(companyId: string) {
+    const company = await this.prisma.company.findUniqueOrThrow({
+      where: { id: companyId },
+      select: { settings: true },
+    });
+    const settings = company.settings as Record<string, unknown>;
+    return { costs: (settings['costs'] as UpdateCostSettingsDto | undefined) ?? null };
+  }
+
+  async updateCostSettings(companyId: string, dto: UpdateCostSettingsDto) {
+    const company = await this.prisma.company.findUniqueOrThrow({
+      where: { id: companyId },
+      select: { settings: true },
+    });
+
+    const existing = (company.settings as Record<string, unknown>) ?? {};
+    const merged: Record<string, unknown> = { ...existing, costs: dto };
+
+    await this.prisma.company.update({
+      where: { id: companyId },
+      data: { settings: merged as Prisma.InputJsonValue },
+    });
+
+    // TODO: invalidate cache key `company:${companyId}:settings` via CacheService (Task 3.3)
+
+    return { costs: dto };
   }
 }
