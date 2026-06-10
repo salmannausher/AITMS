@@ -325,3 +325,12 @@ model AiTask {
   @@index([entity_type, entity_id])
   @@map("ai_tasks")
 }
+
+model Cache {
+  key        String   @id
+  value      String
+  expires_at DateTime
+
+  @@index([expires_at])
+  @@map("cache")
+}

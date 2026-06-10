@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { type Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from '../cache/cache.service';
 import { OnboardCompanyDto } from './dto/onboard-company.dto';
 import { UpdateCostSettingsDto } from './dto/update-cost-settings.dto';
 
@@ -13,6 +14,7 @@ export class CompaniesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly cache: CacheService,
   ) {
     // Instantiate after ConfigModule has resolved env vars
     this.supabaseAdmin = createClient(
@@ -88,7 +90,7 @@ export class CompaniesService {
       data: { settings: merged as Prisma.InputJsonValue },
     });
 
-    // TODO: invalidate cache key `company:${companyId}:settings` via CacheService (Task 3.3)
+    await this.cache.del(`company:${companyId}:settings`);
 
     return { costs: dto };
   }

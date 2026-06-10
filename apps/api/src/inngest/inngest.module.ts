@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { InngestController } from './inngest.controller';
 import { PrismaService } from '../prisma/prisma.service';
 import { createParseEmailFunction } from '../intake/intake.functions';
+import { createCleanCacheFunction } from '../cache/cache.functions';
 import { AnthropicProvider } from '../ai/anthropic.provider';
 import { OpenRouterProvider } from '../ai/openrouter.provider';
 import { INNGEST_FUNCTIONS } from './inngest.tokens';
@@ -33,7 +34,10 @@ const logger = new Logger('InngestModule');
                 );
               })();
 
-        return [createParseEmailFunction(prisma, aiProvider)];
+        return [
+          createParseEmailFunction(prisma, aiProvider),
+          createCleanCacheFunction(prisma),
+        ];
       },
       inject: [PrismaService],
     },
