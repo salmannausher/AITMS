@@ -376,10 +376,11 @@ The MVP is done when ALL of the following are true:
 ### Week 3 Status
 | Task | Status |
 |---|---|
-| Task 3.1 — Carrier cost settings (schema + API + UI) | ✅ Done — branch `feat/task-3.1-carrier-cost-settings`, pushed to GitHub, PR pending |
-| Task 3.2 — Rate Analysis Agent (`load.created` → AI score) | ⏳ Next |
-| Task 3.3 — Load Board UI (Supabase Realtime) | ⏳ Next |
-| Task 3.4 — `/loads/[id]` detail page with score reasoning | ⏳ Next |
+| Task 3.1 — Carrier cost settings (schema + API + UI) | ✅ Done — merged to main |
+| Task 3.2 — CacheService (Postgres-backed, nightly cleanup cron) | ✅ Done — branch `feat/task-3.2-cache-service`, PR pending |
+| Task 3.3 — Rate Analysis Agent (`load.created` → AI score) | ⏳ Next |
+| Task 3.4 — Load Board UI (Supabase Realtime) | ⏳ Next |
+| Task 3.5 — `/loads/[id]` detail page with score reasoning | ⏳ Next |
 
 ### Task 3.1 — Carrier Cost Settings
 - Schema: `packages/shared/src/schemas/company-settings.schema.ts` — `carrierCostSettingsSchema` + `CarrierCostSettings`
@@ -397,6 +398,15 @@ The MVP is done when ALL of the following are true:
   - Read-only with notice banner for non-OWNER roles
   - New shadcn component: `apps/web/src/components/ui/card.tsx`
 - Typecheck: 4/4 packages pass | Tests: 19/19 pass
+
+### Task 3.2 — CacheService (Postgres-backed)
+- Schema: `Cache` model added to `prisma/schema.prisma` — `key` (PK), `value` (JSON string), `expires_at`
+- Migration: `apps/api/prisma/migrations/20260610000000_add_cache_table/migration.sql` — applied manually via Supabase SQL Editor + `_prisma_migrations` row inserted
+- Service: `apps/api/src/cache/cache.service.ts` — `get<T>`, `set`, `del`; expired rows return null; parse errors evict the row
+- Module: `apps/api/src/cache/cache.module.ts` — exports `CacheService`; imported in `AppModule` + `CompaniesModule`
+- Cron: `apps/api/src/cache/cache.functions.ts` — `clean-cache` Inngest function, runs nightly at 03:00 UTC; registered in `InngestModule`
+- `CompaniesService` updated: `cache.del('company:{id}:settings')` called on settings update (replaces previous TODO)
+- Key conventions: `eia:diesel_price` TTL 86400 · `lane:{o}:{d}:{companyId}` TTL 3600 · `company:{id}:settings` TTL 300
 
 ### Week 1 Gate Status
 | Task | Status |
@@ -523,3 +533,32 @@ The MVP is done when ALL of the following are true:
 | Web | Vercel `aitms-web` | `vercel --prod` from repo root |
 | API | Railway `amused-integrity` | `railway up --detach` from repo root |
 | DB | Supabase `AITMS` | `pnpm --filter @aitms/api db:migrate` |
+
+### Local Migration Workaround (port 5432 blocked)
+`prisma migrate dev`, `prisma migrate deploy`, and `prisma migrate status` all require a direct connection to Supabase on port 5432. This port is blocked on the dev machine's network — all three commands fail with `P1001`. Railway (CI/deploy) is unaffected.
+
+**Workflow for every new migration locally:**
+
+1. Add the model to `prisma/schema.prisma`
+2. Run `prisma generate` to update the client:
+   ```bash
+   pnpm --filter @aitms/api exec prisma generate
+   ```
+3. Manually create the migration file:
+   ```
+   apps/api/prisma/migrations/YYYYMMDDHHMMSS_migration_name/migration.sql
+   ```
+4. Run the SQL in **Supabase SQL Editor** (supabase.com/dashboard → SQL Editor)
+5. Get the SHA-256 checksum of the migration file:
+   ```bash
+   sha256sum apps/api/prisma/migrations/<folder>/migration.sql
+   ```
+6. Insert the migration record in Supabase SQL Editor:
+   ```sql
+   INSERT INTO "_prisma_migrations"
+     (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
+   VALUES
+     (gen_random_uuid()::text, '<checksum>', now(), '<migration_name>', NULL, NULL, now(), 1);
+   ```
+
+Runtime queries use `DATABASE_URL` (port 6543, pgbouncer) and are never affected.
