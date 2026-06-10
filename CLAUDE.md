@@ -368,7 +368,7 @@ The MVP is done when ALL of the following are true:
 > Last updated: June 10 2026 — update this section at the end of every session.
 
 ### Git Workflow (adopted Week 3)
-- **Never push directly to `main`** — always work on a feature branch
+- **Never push directly to `main`** — every commit, including small fixes, test files, and docs, must go through a feature branch and PR. No exceptions.
 - Branch naming: `feat/task-X.Y-short-description`
 - PR flow: push branch → `gh pr create` → CI gate → squash merge to main
 - Set branch protection on `main` in GitHub (require CI status check) before next deploy
