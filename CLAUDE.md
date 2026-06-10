@@ -365,7 +365,7 @@ The MVP is done when ALL of the following are true:
 ---
 
 ## Current Session State
-> Last updated: June 10 2026 — update this section at the end of every session.
+> Last updated: June 10 2026 (end of session) — update this section at the end of every session.
 
 ### Git Workflow (adopted Week 3)
 - **Never push directly to `main`** — every commit, including small fixes, test files, and docs, must go through a feature branch and PR. No exceptions.
@@ -377,8 +377,8 @@ The MVP is done when ALL of the following are true:
 | Task | Status |
 |---|---|
 | Task 3.1 — Carrier cost settings (schema + API + UI) | ✅ Done — merged to main |
-| Task 3.2 — CacheService (Postgres-backed, nightly cleanup cron) | ✅ Done — branch `feat/task-3.2-cache-service`, PR pending |
-| Task 3.3 — Rate Analysis Agent (`load.created` → AI score) | ⏳ Next |
+| Task 3.2 — CacheService (Postgres-backed, nightly cleanup cron) | ✅ Done — merged to main, 26/26 tests passing |
+| Task 3.3 — Rate Analysis Agent (`load.created` → AI score) | ⏳ Next — start here |
 | Task 3.4 — Load Board UI (Supabase Realtime) | ⏳ Next |
 | Task 3.5 — `/loads/[id]` detail page with score reasoning | ⏳ Next |
 
