@@ -132,17 +132,47 @@ export function createParseEmailFunction(
       const { parsed, inputTokens, outputTokens, modelUsed } = await step.run(
         'claude-parse',
         async () => {
+          const today = new Date();
+          const todayLine = `TODAY'S DATE: ${today.toISOString().slice(0, 10)} (${today.toLocaleDateString('en-US', { weekday: 'long' })})`;
+
           const userText =
             pdfText.length > 0
-              ? `RATE CONFIRMATION DOCUMENT:\n${pdfText}\n\nEMAIL BODY:\n${textBody}`
-              : `EMAIL BODY:\n${textBody}\n\nSUBJECT: ${subject}\nFROM: ${fromEmail}`;
+              ? `${todayLine}\n\nRATE CONFIRMATION DOCUMENT:\n${pdfText}\n\nEMAIL BODY:\n${textBody}`
+              : `${todayLine}\n\nEMAIL BODY:\n${textBody}\n\nSUBJECT: ${subject}\nFROM: ${fromEmail}`;
 
-          const system = `You are a freight document parser for a trucking company.
-Extract structured load data from the provided broker email or rate confirmation.
+          const system = `You are a freight document parser for a trucking dispatch system.
+Extract structured load data from broker emails and rate confirmation documents.
 Return ONLY a create_load tool call. No explanation. No commentary.
-If a field cannot be found with high confidence, set it to null.
-CRITICAL: Never invent or infer a rate not explicitly stated in the document.
-A rate must appear as a dollar amount. If no rate is visible, set rate to null.`;
+
+PARTIES — do not confuse them:
+- broker_name = the company OFFERING the load (usually the email sender / letterhead on the rate-con).
+- The shipper/consignee (pickup and delivery facilities) are NOT the broker.
+- The carrier (the trucking company being hired) is NOT the broker.
+
+LOCATIONS:
+- origin_city/origin_state = the FIRST pickup. dest_city/dest_state = the LAST delivery.
+- Extract city and 2-letter uppercase state code only (e.g. "Chicago" + "IL"), never facility names or street addresses.
+- Convert full state names to 2-letter codes ("Illinois" → "IL").
+
+DATES:
+- Always ISO format YYYY-MM-DD.
+- Resolve relative dates ("tomorrow", "Monday", "6/16" with no year) using TODAY'S DATE given in the message. If no date can be determined, set pickup_date to today's date and confidence to 0.5 or lower.
+
+RATE:
+- rate = total all-in carrier pay in USD. If linehaul and fuel surcharge are listed separately, SUM them. Exclude detention/lumper/accessorial estimates.
+- If only a per-mile rate appears with no total, set rate to null.
+- NEVER invent or infer a rate not explicitly stated as a dollar amount.
+
+OTHER FIELDS:
+- load_type: infer from trailer/commodity wording — "reefer/refrigerated/frozen/temp-controlled" → REEFER; "53' van/dry van" → DRY_VAN; "flatbed/tarp/coil/lumber" → FLATBED; "step deck/stepdeck/drop deck" → STEP_DECK. Unclear → null.
+- weight: pounds. Convert tons (×2000). Strip "lbs"/commas.
+- reference_number: the broker's load/PRO/confirmation number, not the MC number.
+
+CONFIDENCE — be honest, this gates human review:
+- 0.9+: all required fields explicit in the document.
+- 0.7–0.85: a required field was inferred or ambiguous.
+- ≤0.5: dates missing/guessed, OR multiple loads in one email (parse only the first), OR this may not be a load offer at all.
+- 0: the email contains no load (payment reminder, spam, general inquiry).`;
 
           const result = await aiProvider.parseEmail({
             system,
@@ -158,6 +188,15 @@ A rate must appear as a dollar amount. If no rate is visible, set rate to null.`
           };
         },
       );
+
+      // Confidence 0 means the model determined the email contains no load
+      // (spam, payment reminder, general inquiry) — skip creation entirely.
+      if (parsed.confidence !== undefined && parsed.confidence <= 0.2) {
+        logger.warn(
+          `Email ${messageId} parsed with confidence ${parsed.confidence} — no load created`,
+        );
+        return { loadId: null, confidence: parsed.confidence, skipped: true };
+      }
 
       // ── Step 3: Create DB records ───────────────────────────────────────
       const load = await step.run('create-db-records', async () => {

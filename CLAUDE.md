@@ -365,7 +365,7 @@ The MVP is done when ALL of the following are true:
 ---
 
 ## Current Session State
-> Last updated: June 8 2026 — update this section at the end of every session.
+> Last updated: June 10 2026 — update this section at the end of every session.
 
 ### Week 1 Gate Status
 | Task | Status |
@@ -423,6 +423,9 @@ The MVP is done when ALL of the following are true:
 - Model: `claude-haiku-4-5` for text-only; auto-upgrades to `claude-sonnet-4-5` when fallback PDF document blocks are present
 - PDF fallback: if `pdf-parse` throws or returns <50 chars, attachment goes into `claudeDocuments[]` and is sent as a native Claude `document` block (base64 PDF) — `claude-haiku-4-5` does NOT support document blocks, hence the model upgrade
 - tool call: `create_load` | temperature: 0
+- System prompt v2 (June 10 2026): party disambiguation (broker vs shipper vs carrier), city/state extraction rules, relative-date resolution, rate = linehaul + FSC summed, load_type inference vocabulary, calibrated confidence anchors
+- Today's date injected into user message (`TODAY'S DATE: YYYY-MM-DD (Weekday)`) so relative dates ("tomorrow", "6/16") can be resolved
+- No-load skip: if parsed `confidence <= 0.2` (prompt defines 0 = no load in email), function returns `{ loadId: null, skipped: true }` without creating a Load — prevents garbage loads from spam/payment reminders
 - Schema migrations applied: `20260605000000_nullable_load_fields_add_needs_review`
   - `delivery_date`, `load_type`, `rate` now nullable on `Load`
   - `needs_review Boolean @default(false)` added to `Load`
