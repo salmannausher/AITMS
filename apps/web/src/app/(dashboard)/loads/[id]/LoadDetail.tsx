@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { AiAnalysisPanel } from '@/components/loads/AiAnalysisPanel';
 import { DriverRecommendations } from '@/components/loads/DriverRecommendations';
 import { ActionBar } from '@/components/loads/ActionBar';
 import { EventTimeline } from '@/components/loads/EventTimeline';
 import { MessagesTab } from '@/components/loads/MessagesTab';
+import { useLoadDetailRealtime } from '@/hooks/useLoadDetailRealtime';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { LoadDetail as LoadDetailType } from '@/components/loads/types';
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
@@ -35,6 +37,23 @@ function fmtDate(iso: string | null) {
 
 export function LoadDetail({ load: initialLoad }: { load: LoadDetailType }) {
   const [load, setLoad] = useState(initialLoad);
+
+  const refetch = useCallback(async () => {
+    const supabase = createSupabaseBrowserClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/loads/${initialLoad.id}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        cache: 'no-store',
+      });
+      if (res.ok) setLoad(await res.json() as LoadDetailType);
+    } catch {
+      // silently ignore — stale data is better than a crash
+    }
+  }, [initialLoad.id]);
+
+  useLoadDetailRealtime(initialLoad.id, initialLoad.company_id, refetch);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 space-y-5" style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
