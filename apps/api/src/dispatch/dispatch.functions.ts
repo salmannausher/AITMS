@@ -91,8 +91,50 @@ export function createRankDriversFunction(prisma: PrismaService, aiProvider: AiP
 
         if (drivers.length === 0) return { skipped: 'no available drivers' as const };
 
+        // Hard pre-filter 1: HOS — driver needs at least (estimated_miles / 55mph) hours
+        // plus 2h buffer. If miles unknown, require at least 8h (minimum viable shift).
+        const minHours = load.estimated_miles
+          ? Math.ceil(load.estimated_miles / 55) + 2
+          : 8;
+        const hosEligible = drivers.filter((d) => d.hos_remaining_hours >= minHours);
+        logger.log(
+          `rank-drivers: ${hosEligible.length}/${drivers.length} drivers pass HOS filter (need ≥${minHours}h)`,
+        );
+        if (hosEligible.length === 0) {
+          await prisma.load.update({
+            where: { id: loadId },
+            data: { needs_review: true },
+          });
+          return { skipped: 'no drivers with sufficient HOS' as const };
+        }
+
+        // Hard pre-filter 2: equipment — DRY_VAN and REEFER loads require a dry van
+        // or reefer truck. FLATBED/STEP_DECK loads require flatbed/step-deck/lowboy.
+        const DRY_CAPABLE = new Set(['DRY_VAN', 'REEFER', null]);
+        const FLAT_CAPABLE = new Set(['FLATBED', 'STEP_DECK', 'LOWBOY', null]);
+        const equipEligible = hosEligible.filter((d) => {
+          if (!d.truck_type) return true; // no truck assigned → let Claude decide
+          if (load.load_type === 'DRY_VAN' || load.load_type === 'REEFER') {
+            return DRY_CAPABLE.has(d.truck_type);
+          }
+          if (load.load_type === 'FLATBED' || load.load_type === 'STEP_DECK') {
+            return FLAT_CAPABLE.has(d.truck_type);
+          }
+          return true; // unknown load type — pass all
+        });
+        logger.log(
+          `rank-drivers: ${equipEligible.length}/${hosEligible.length} drivers pass equipment filter`,
+        );
+        if (equipEligible.length === 0) {
+          await prisma.load.update({
+            where: { id: loadId },
+            data: { needs_review: true },
+          });
+          return { skipped: 'no drivers with matching equipment' as const };
+        }
+
         // Pre-compute deadhead miles for each driver (TypeScript — not Claude's job)
-        const driversWithDeadhead = drivers.map((d) => ({
+        const driversWithDeadhead = equipEligible.map((d) => ({
           ...d,
           deadhead_miles: getDeadheadMiles(d.home_state, load.origin_state),
         }));
@@ -112,17 +154,22 @@ export function createRankDriversFunction(prisma: PrismaService, aiProvider: AiP
         'claude-rank',
         async () => {
           const system = `You are a dispatch coordinator for a trucking carrier.
-Rank the available drivers for this load. Consider:
-1. HOS hours remaining — driver needs enough hours to complete the load
-2. Deadhead miles — closer drivers are preferred (lower deadhead = better score)
-3. Truck type match — match load_type to truck capability
-4. Driver status — only AVAILABLE drivers are given to you
+All drivers passed to you have already cleared HOS and equipment pre-filters in code.
+Your job is to rank them by quality of fit.
 
-Scoring 0-100: 100 = perfect fit, 0 = cannot do this load.
-reason must be plain language a dispatcher understands, ≤12 words.
-recommendation_summary: ≤20 words describing the top choice and why.
+Scoring 0-100:
+  90-100 — perfect: close deadhead, ample HOS, exact equipment match
+  70-89  — good: minor tradeoff (slightly more deadhead or lower HOS)
+  50-69  — marginal: meaningful tradeoff but workable
+  0-49   — poor fit (use only if no better option exists)
 
-Return ONLY a rank_drivers tool call. Rank up to 5 drivers.`;
+Rank by: 1) deadhead_miles (lower is better), 2) hos_remaining_hours (more is better),
+3) truck type match to load_type.
+
+reason must be plain language a dispatcher can read, ≤12 words.
+recommendation_summary: ≤20 words on why the top driver is the best pick.
+
+Return ONLY a rank_drivers tool call. Rank up to 5 drivers, best first.`;
 
           const userMessage = JSON.stringify({
             load: {
