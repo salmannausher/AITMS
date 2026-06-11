@@ -205,48 +205,50 @@ Return ONLY a rank_drivers tool call. Rank up to 5 drivers, best first.`;
 
       // ── Step 3: Persist results to AiTask + update load ───────────────────
       await step.run('save-rankings', async () => {
-        await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-          await tx.aiTask.create({
-            data: {
-              company_id: companyId,
-              agent: 'dispatch',
-              task_type: 'rank_drivers',
-              entity_type: 'load',
-              entity_id: loadId,
-              input: {
-                loadId,
-                driverCount: drivers.length,
-                origin: `${load.origin_state}`,
-                dest: `${load.dest_state}`,
-              },
-              output: ranked as unknown as Prisma.InputJsonValue,
-              model: modelUsed,
-              input_tokens: inputTokens,
-              output_tokens: outputTokens,
-              latency_ms: latencyMs,
-              status: 'COMPLETED',
-            },
-          });
-
-          // Store ranked drivers in load's ai_score_details alongside existing AI data
-          const existing = await tx.load.findUnique({
-            where: { id: loadId },
-            select: { ai_score_details: true },
-          });
-          const existingDetails =
-            (existing?.ai_score_details as Record<string, unknown> | null) ?? {};
-
-          await tx.load.update({
-            where: { id: loadId },
-            data: {
-              ai_score_details: {
-                ...existingDetails,
-                driver_rankings: ranked,
-                driver_rankings_at: new Date().toISOString(),
-              } as Prisma.InputJsonValue,
-            },
-          });
+        // Fetch existing ai_score_details BEFORE the transaction to keep it short.
+        // This avoids the 5s interactive transaction timeout on PgBouncer connections.
+        const existing = await prisma.load.findUnique({
+          where: { id: loadId },
+          select: { ai_score_details: true },
         });
+        const existingDetails =
+          (existing?.ai_score_details as Record<string, unknown> | null) ?? {};
+
+        await prisma.$transaction(
+          [
+            prisma.aiTask.create({
+              data: {
+                company_id: companyId,
+                agent: 'dispatch',
+                task_type: 'rank_drivers',
+                entity_type: 'load',
+                entity_id: loadId,
+                input: {
+                  loadId,
+                  driverCount: drivers.length,
+                  origin: `${load.origin_state}`,
+                  dest: `${load.dest_state}`,
+                },
+                output: ranked as unknown as Prisma.InputJsonValue,
+                model: modelUsed,
+                input_tokens: inputTokens,
+                output_tokens: outputTokens,
+                latency_ms: latencyMs,
+                status: 'COMPLETED',
+              },
+            }),
+            prisma.load.update({
+              where: { id: loadId },
+              data: {
+                ai_score_details: {
+                  ...existingDetails,
+                  driver_rankings: ranked,
+                  driver_rankings_at: new Date().toISOString(),
+                } as Prisma.InputJsonValue,
+              },
+            }),
+          ],
+        );
       });
 
       // ── Step 4: Emit load/drivers-ranked event ────────────────────────────
