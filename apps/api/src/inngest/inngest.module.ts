@@ -2,8 +2,12 @@ import { Logger, Module } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
 import { InngestController } from './inngest.controller';
 import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from '../cache/cache.service';
+import { CacheModule } from '../cache/cache.module';
 import { createParseEmailFunction } from '../intake/intake.functions';
 import { createCleanCacheFunction } from '../cache/cache.functions';
+import { createScoreLoadFunction } from '../rate-analysis/rate-analysis.functions';
+import { EiaService } from '../rate-analysis/eia.service';
 import { AnthropicProvider } from '../ai/anthropic.provider';
 import { OpenRouterProvider } from '../ai/openrouter.provider';
 import { INNGEST_FUNCTIONS } from './inngest.tokens';
@@ -11,11 +15,12 @@ import { INNGEST_FUNCTIONS } from './inngest.tokens';
 const logger = new Logger('InngestModule');
 
 @Module({
+  imports: [CacheModule],
   controllers: [InngestController],
   providers: [
     {
       provide: INNGEST_FUNCTIONS,
-      useFactory: (prisma: PrismaService) => {
+      useFactory: (prisma: PrismaService, cache: CacheService) => {
         const provider = process.env['AI_PROVIDER'];
 
         const aiProvider =
@@ -34,12 +39,16 @@ const logger = new Logger('InngestModule');
                 );
               })();
 
+        const anthropic = new Anthropic({ apiKey: process.env['ANTHROPIC_API_KEY'] });
+        const eia = new EiaService();
+
         return [
           createParseEmailFunction(prisma, aiProvider),
           createCleanCacheFunction(prisma),
+          createScoreLoadFunction(prisma, anthropic, cache, eia),
         ];
       },
-      inject: [PrismaService],
+      inject: [PrismaService, CacheService],
     },
   ],
 })
