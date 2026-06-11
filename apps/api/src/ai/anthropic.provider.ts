@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { type AiProvider, type ParseEmailResult } from './ai-provider';
+import { type AiProvider, type ParseEmailResult, type ScoreLoadResult } from './ai-provider';
 
 // Tool schema shared between providers
 export const CREATE_LOAD_TOOL = {
@@ -30,6 +30,21 @@ export const CREATE_LOAD_TOOL = {
         maximum: 1,
         description: 'Confidence in extraction accuracy (0-1)',
       },
+    },
+  },
+};
+
+const SCORE_LOAD_TOOL_ANTHROPIC = {
+  name: 'score_load',
+  description: 'Record the scoring decision for this load',
+  input_schema: {
+    type: 'object' as const,
+    required: ['score', 'suggested_minimum_rate', 'counteroffer_rate', 'reason'],
+    properties: {
+      score: { type: 'string' as const, enum: ['GOOD', 'MARGINAL', 'AVOID'] },
+      suggested_minimum_rate: { type: 'number' as const },
+      counteroffer_rate: { type: ['number', 'null'] as unknown as 'number' },
+      reason: { type: 'string' as const },
     },
   },
 };
@@ -84,6 +99,33 @@ export class AnthropicProvider implements AiProvider {
       inputTokens: response.usage.input_tokens,
       outputTokens: response.usage.output_tokens,
       modelUsed: model,
+    };
+  }
+
+  async scoreLoad({ system, userMessage }: { system: string; userMessage: string }): Promise<ScoreLoadResult> {
+    const startMs = Date.now();
+
+    const response = await this.client.messages.create({
+      model: 'claude-haiku-4-5',
+      max_tokens: 512,
+      temperature: 0,
+      system,
+      tools: [SCORE_LOAD_TOOL_ANTHROPIC],
+      tool_choice: { type: 'tool', name: 'score_load' },
+      messages: [{ role: 'user', content: userMessage }],
+    });
+
+    const toolUse = response.content.find((b) => b.type === 'tool_use');
+    if (!toolUse || toolUse.type !== 'tool_use') {
+      throw new Error('Anthropic did not return a score_load tool call');
+    }
+
+    return {
+      toolInput: toolUse.input as Record<string, unknown>,
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+      modelUsed: response.model,
+      latencyMs: Date.now() - startMs,
     };
   }
 }

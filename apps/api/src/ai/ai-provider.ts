@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
 // Shared interface — all AI providers must implement this.
-// intake.functions.ts depends on this interface, not on any specific SDK.
+// intake.functions.ts and rate-analysis depend on this, not on any specific SDK.
 // ---------------------------------------------------------------------------
 
 export type ParseEmailResult = {
@@ -8,6 +8,14 @@ export type ParseEmailResult = {
   inputTokens: number;
   outputTokens: number;
   modelUsed: string;
+};
+
+export type ScoreLoadResult = {
+  toolInput: Record<string, unknown>;
+  inputTokens: number;
+  outputTokens: number;
+  modelUsed: string;
+  latencyMs: number;
 };
 
 export interface AiProvider {
@@ -20,4 +28,12 @@ export interface AiProvider {
     userText: string;
     claudeDocuments?: Array<{ name: string; dataBase64: string }>;
   }): Promise<ParseEmailResult>;
+
+  /**
+   * Score a load using the score_load tool. System prompt + JSON user message → GOOD/MARGINAL/AVOID.
+   */
+  scoreLoad(params: {
+    system: string;
+    userMessage: string;
+  }): Promise<ScoreLoadResult>;
 }
