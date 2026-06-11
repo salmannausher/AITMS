@@ -373,13 +373,28 @@ The MVP is done when ALL of the following are true:
 - PR flow: push branch → `gh pr create` → CI gate → squash merge to main
 - Set branch protection on `main` in GitHub (require CI status check) before next deploy
 
-### Week 3 Status
+### Week 4 Status
 | Task | Status |
 |---|---|
 | Task 3.1 — Carrier cost settings (schema + API + UI) | ✅ Done — merged to main |
 | Task 3.2 — CacheService (Postgres-backed, nightly cleanup cron) | ✅ Done — merged to main, 26/26 tests passing |
 | Task 3.3 — Rate Analysis Agent (`load.created` → AI score) | ✅ Done — merged to main, Week 3 Gate passed |
-| Task 4 — Load Board UI (Supabase Realtime) | ⏳ Next — start here (new session) |
+| Task 4.1 — Load Board UI (GET /loads, GET /loads/stats, kanban board) | ✅ Done — merged to main (PR #12) |
+| Task 4.2 — Load Detail page (AI Analysis Panel, Counter-offer Sheet) | ✅ Done — merged to main (PR #12) |
+| Task 4.3 — Notification infrastructure (toasts, NeedsReviewBanner, driver alert stub) | ✅ Done — merged to main (PR #11) |
+| Post-login fix (blank page, truck_number field) | ✅ Done — PR #13 pending merge |
+
+### Week 4 Gate — PASSED (June 11 2026)
+| Check | Result |
+|---|---|
+| Login → redirects to `/dashboard` (load board) | ✅ |
+| Load board renders kanban columns with live data | ✅ — 8 active loads, 2 scored with GOOD badge |
+| Supabase Realtime green dot visible | ✅ |
+| Stats bar shows Active Loads, Need Assignment, Drivers Available, Avg RPM | ✅ |
+| GET /loads/stats returns correct counts | ✅ |
+| PATCH /loads/:id/status validates transitions (PENDING→ACCEPTED blocked) | ✅ |
+| GET /loads/:id (detail) works after `truck_number`→`unit_number` fix | ✅ |
+| NeedsReviewBanner + useNotifications wired | ✅ (requires actual needs_review load to appear) |
 
 ### Week 3 Gate — PASSED (June 11 2026)
 | Check | Result |
@@ -390,6 +405,38 @@ The MVP is done when ALL of the following are true:
 | Carrier settings saved and used in scoring | ✅ |
 | AiTask record created for every scoring call | ✅ |
 | EIA diesel price cache | ⚠️ Using $3.85 fallback — restart API after adding EIA_API_KEY to pick up live price |
+
+### Task 4 — Load Board UI + Notifications
+
+#### API additions (`apps/api/src/loads/`)
+- `GET /loads` — returns active loads for company (excludes CANCELLED/PAID/INVOICED by default; `?status=ACTIVE` also works)
+- `GET /loads/stats` — `{ total_active, needs_assignment, drivers_available, todays_avg_rpm }`
+- `GET /loads/:id` — full load detail with broker, driver, truck, events, messages (via `LOAD_DETAIL_INCLUDE`)
+- `PATCH /loads/:id/status` — validates transitions via `ALLOWED_TRANSITIONS` map; `UpdateStatusDto` with `@IsEnum(LoadStatus)`
+- `PATCH /loads/:id/reviewed` — clears `needs_review` flag
+- Bug fix: `LOAD_DETAIL_INCLUDE` uses `unit_number` (not `truck_number`) for Truck relation
+
+#### Frontend additions (`apps/web/src/`)
+- `hooks/useLoads.ts` — groups loads into kanban columns, fetches stats on mount
+- `hooks/useLoadsBoardRealtime.ts` — single Supabase postgres_changes channel, accepts `onLoadChange` + `onNotificationEvent` callbacks; retries on CHANNEL_ERROR
+- `hooks/useNotifications.ts` — derives NEW_LOAD and NEEDS_REVIEW events from load changes; separate broadcast channel for DRIVER_NO_REPLY; max 20 notifications
+- `components/board/LoadBoard.tsx` — wires hooks, renders kanban columns, always-visible: PENDING/SCORED/ACCEPTED/ASSIGNED/EN_ROUTE
+- `components/board/LoadCard.tsx` — shows origin→dest, rate, RPM, AI score badge, broker, driver
+- `components/board/StatsBar.tsx` — 4 stat chips
+- `components/loads/AiAnalysisPanel.tsx` — score badge, reasoning, RPM bar, uses `safeParse` (never crashes on bad AI data)
+- `components/loads/CounterOfferPanel.tsx` — Shadcn Sheet from right, editable rate, clipboard copy
+- `components/notifications/NeedsReviewBanner.tsx` — amber banner, links to `?filter=needs_review`
+- `app/(dashboard)/dashboard/page.tsx` — server component, SSR fetches loads, wraps LoadBoard in `<Suspense>`
+- `app/(dashboard)/loads/[id]/page.tsx` — load detail page
+- `lib/supabase/client.ts` — browser Supabase client for Realtime
+
+#### Architecture decision: one Realtime channel, two consumers
+`useLoadsBoardRealtime` owns the single `loads:company:${companyId}` postgres_changes subscription. It accepts an optional `onNotificationEvent` callback so `useNotifications` can piggyback without opening a second WebSocket.
+
+#### Bug fixes shipped (PR #13)
+- Root `page.tsx` was an empty `<div>` — now redirects to `/dashboard`
+- Middleware redirected logged-in users to `/` instead of `/dashboard`
+- `LOAD_DETAIL_INCLUDE` used `truck_number` (not in schema) → fixed to `unit_number`
 
 ### Task 3.1 — Carrier Cost Settings
 - Schema: `packages/shared/src/schemas/company-settings.schema.ts` — `carrierCostSettingsSchema` + `CarrierCostSettings`
