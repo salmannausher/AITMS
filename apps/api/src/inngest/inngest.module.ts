@@ -39,13 +39,12 @@ const logger = new Logger('InngestModule');
                 );
               })();
 
-        const anthropic = new Anthropic({ apiKey: process.env['ANTHROPIC_API_KEY'] });
         const eia = new EiaService();
 
         return [
           createParseEmailFunction(prisma, aiProvider),
           createCleanCacheFunction(prisma),
-          createScoreLoadFunction(prisma, anthropic, cache, eia),
+          createScoreLoadFunction(prisma, aiProvider, cache, eia),
         ];
       },
       inject: [PrismaService, CacheService],

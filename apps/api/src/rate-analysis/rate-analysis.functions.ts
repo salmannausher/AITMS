@@ -1,10 +1,10 @@
 import { Logger } from '@nestjs/common';
-import Anthropic from '@anthropic-ai/sdk';
 import { Prisma } from '@prisma/client';
 import { carrierCostSettingsSchema } from '@aitms/shared';
 import { inngest } from '../inngest/inngest.client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../cache/cache.service';
+import { type AiProvider } from '../ai/ai-provider';
 import { EiaService } from './eia.service';
 import { type LoadCreatedEventData } from './rate-analysis.types';
 
@@ -19,7 +19,7 @@ interface ScoreToolOutput {
 
 export function createScoreLoadFunction(
   prisma: PrismaService,
-  anthropic: Anthropic,
+  aiProvider: AiProvider,
   cache: CacheService,
   eia: EiaService,
 ) {
@@ -198,28 +198,11 @@ export function createScoreLoadFunction(
 
       const { load, costs, laneHistory, dieselPricePerGallon, computed } = context;
 
-      // ── Step 2: Claude scores the load ─────────────────────────────────────
+      // ── Step 2: AI scores the load ─────────────────────────────────────────
       const { scored, inputTokens, outputTokens, modelUsed, latencyMs } = await step.run(
         'claude-score',
         async () => {
-          const userMessage = JSON.stringify({
-            lane: `${load.origin_state} → ${load.dest_state}`,
-            pickup_date: String(load.pickup_date).slice(0, 10),
-            load_type: load.load_type ?? 'unknown',
-            rate_usd: Number(load.rate),
-            minimum_rpm: costs.minimum_rpm,
-            diesel_price_per_gallon: dieselPricePerGallon,
-            computed,
-            lane_history_last_30: laneHistory,
-          });
-
-          const startMs = Date.now();
-
-          const response = await anthropic.messages.create({
-            model: 'claude-haiku-4-5',
-            max_tokens: 512,
-            temperature: 0,
-            system: `You are a freight rate analyst for a trucking carrier.
+          const system = `You are a freight rate analyst for a trucking carrier.
 All financial math has been computed for you — treat the numbers as ground truth.
 Your job is the judgment call only. Be conservative: when in doubt, score MARGINAL.
 
@@ -232,52 +215,27 @@ reason must be plain language a dispatcher can read, 12 words max.
 suggested_minimum_rate is the walk-away total in USD (at minimum, covers break-even).
 counteroffer_rate: non-null only when score is MARGINAL — target ~8% above offered rate.
 
-Return ONLY a score_load tool call. No commentary.`,
-            tools: [
-              {
-                name: 'score_load',
-                description: 'Record the scoring decision for this load',
-                input_schema: {
-                  type: 'object' as const,
-                  required: ['score', 'suggested_minimum_rate', 'counteroffer_rate', 'reason'],
-                  properties: {
-                    score: {
-                      type: 'string' as const,
-                      enum: ['GOOD', 'MARGINAL', 'AVOID'],
-                    },
-                    suggested_minimum_rate: {
-                      type: 'number' as const,
-                      description: 'Walk-away total rate in USD',
-                    },
-                    counteroffer_rate: {
-                      type: ['number', 'null'] as unknown as 'number',
-                      description: 'Non-null only when MARGINAL; ~8% above offered rate',
-                    },
-                    reason: {
-                      type: 'string' as const,
-                      description: 'Plain language for dispatcher, max 12 words',
-                    },
-                  },
-                },
-              },
-            ],
-            tool_choice: { type: 'tool', name: 'score_load' },
-            messages: [{ role: 'user', content: userMessage }],
+Return ONLY a score_load tool call. No commentary.`;
+
+          const userMessage = JSON.stringify({
+            lane: `${load.origin_state} → ${load.dest_state}`,
+            pickup_date: String(load.pickup_date).slice(0, 10),
+            load_type: load.load_type ?? 'unknown',
+            rate_usd: Number(load.rate),
+            minimum_rpm: costs.minimum_rpm,
+            diesel_price_per_gallon: dieselPricePerGallon,
+            computed,
+            lane_history_last_30: laneHistory,
           });
 
-          const latencyMs = Date.now() - startMs;
-
-          const toolUse = response.content.find((b) => b.type === 'tool_use');
-          if (!toolUse || toolUse.type !== 'tool_use') {
-            throw new Error('No tool_use block in Claude response');
-          }
+          const result = await aiProvider.scoreLoad({ system, userMessage });
 
           return {
-            scored: toolUse.input as ScoreToolOutput,
-            inputTokens: response.usage.input_tokens,
-            outputTokens: response.usage.output_tokens,
-            modelUsed: response.model,
-            latencyMs,
+            scored: result.toolInput as unknown as ScoreToolOutput,
+            inputTokens: result.inputTokens,
+            outputTokens: result.outputTokens,
+            modelUsed: result.modelUsed,
+            latencyMs: result.latencyMs,
           };
         },
       );

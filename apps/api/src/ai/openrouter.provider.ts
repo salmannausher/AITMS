@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import { type AiProvider, type ParseEmailResult } from './ai-provider';
+import { type AiProvider, type ParseEmailResult, type ScoreLoadResult } from './ai-provider';
 
 const logger = new Logger('OpenRouterProvider');
 
@@ -123,6 +123,68 @@ export class OpenRouterProvider implements AiProvider {
       inputTokens: data.usage?.prompt_tokens ?? 0,
       outputTokens: data.usage?.completion_tokens ?? 0,
       modelUsed: data.model ?? this.model,
+    };
+  }
+
+  async scoreLoad({ system, userMessage }: { system: string; userMessage: string }): Promise<ScoreLoadResult> {
+    const startMs = Date.now();
+
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.apiKey}`,
+        'HTTP-Referer': 'https://devsphinx.dev',
+        'X-Title': 'Devsphinx AI Dispatch',
+      },
+      body: JSON.stringify({
+        model: this.model,
+        temperature: 0,
+        max_tokens: 512,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: userMessage },
+        ],
+        tools: [
+          {
+            type: 'function',
+            function: {
+              name: 'score_load',
+              description: 'Record the scoring decision for this load',
+              parameters: {
+                type: 'object',
+                required: ['score', 'suggested_minimum_rate', 'counteroffer_rate', 'reason'],
+                properties: {
+                  score: { type: 'string', enum: ['GOOD', 'MARGINAL', 'AVOID'] },
+                  suggested_minimum_rate: { type: 'number' },
+                  counteroffer_rate: { type: ['number', 'null'] },
+                  reason: { type: 'string' },
+                },
+              },
+            },
+          },
+        ],
+        tool_choice: { type: 'function', function: { name: 'score_load' } },
+      }),
+    });
+
+    const data = (await response.json()) as OpenRouterResponse;
+
+    if (!response.ok || data.error) {
+      throw new Error(`OpenRouter scoreLoad error: ${data.error?.message ?? response.statusText}`);
+    }
+
+    const toolCall = data.choices[0]?.message?.tool_calls?.[0];
+    if (!toolCall) {
+      throw new Error('OpenRouter did not return a score_load tool call');
+    }
+
+    return {
+      toolInput: JSON.parse(toolCall.function.arguments) as Record<string, unknown>,
+      inputTokens: data.usage?.prompt_tokens ?? 0,
+      outputTokens: data.usage?.completion_tokens ?? 0,
+      modelUsed: data.model ?? this.model,
+      latencyMs: Date.now() - startMs,
     };
   }
 }
