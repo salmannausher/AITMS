@@ -18,6 +18,14 @@ export type ScoreLoadResult = {
   latencyMs: number;
 };
 
+export type RankDriversResult = {
+  toolInput: Record<string, unknown>;
+  inputTokens: number;
+  outputTokens: number;
+  modelUsed: string;
+  latencyMs: number;
+};
+
 export interface AiProvider {
   /**
    * Send an email/document to the AI and get back a structured tool call result.
@@ -32,8 +40,10 @@ export interface AiProvider {
   /**
    * Score a load using the score_load tool. System prompt + JSON user message → GOOD/MARGINAL/AVOID.
    */
-  scoreLoad(params: {
-    system: string;
-    userMessage: string;
-  }): Promise<ScoreLoadResult>;
+  scoreLoad(params: { system: string; userMessage: string }): Promise<ScoreLoadResult>;
+
+  /**
+   * Rank available drivers for a load using the rank_drivers tool.
+   */
+  rankDrivers(params: { system: string; userMessage: string }): Promise<RankDriversResult>;
 }

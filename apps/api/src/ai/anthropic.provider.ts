@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { type AiProvider, type ParseEmailResult, type ScoreLoadResult } from './ai-provider';
+import { type AiProvider, type ParseEmailResult, type RankDriversResult, type ScoreLoadResult } from './ai-provider';
 
 // Tool schema shared between providers
 export const CREATE_LOAD_TOOL = {
@@ -15,7 +15,10 @@ export const CREATE_LOAD_TOOL = {
       dest_state: { type: 'string' as const, description: '2-letter state code e.g. TX' },
       pickup_date: { type: 'string' as const, description: 'ISO date YYYY-MM-DD' },
       delivery_date: { type: ['string', 'null'] as ['string', 'null'] },
-      rate: { type: ['number', 'null'] as ['number', 'null'], description: 'Total load rate in USD' },
+      rate: {
+        type: ['number', 'null'] as ['number', 'null'],
+        description: 'Total load rate in USD',
+      },
       reference_number: { type: ['string', 'null'] as ['string', 'null'] },
       broker_name: { type: ['string', 'null'] as ['string', 'null'] },
       broker_mc_number: { type: ['string', 'null'] as ['string', 'null'] },
@@ -30,6 +33,33 @@ export const CREATE_LOAD_TOOL = {
         maximum: 1,
         description: 'Confidence in extraction accuracy (0-1)',
       },
+    },
+  },
+};
+
+const RANK_DRIVERS_TOOL_ANTHROPIC = {
+  name: 'rank_drivers',
+  description: 'Rank available drivers for this load by suitability',
+  input_schema: {
+    type: 'object' as const,
+    required: ['ranked_drivers', 'recommendation_summary'],
+    properties: {
+      ranked_drivers: {
+        type: 'array' as const,
+        items: {
+          type: 'object' as const,
+          required: ['driver_id', 'rank', 'score', 'reason'],
+          properties: {
+            driver_id: { type: 'string' as const },
+            rank: { type: 'number' as const },
+            score: { type: 'number' as const, minimum: 0, maximum: 100 },
+            reason: { type: 'string' as const },
+            deadhead_miles: { type: ['number', 'null'] as unknown as 'number' },
+            eta_hours: { type: ['number', 'null'] as unknown as 'number' },
+          },
+        },
+      },
+      recommendation_summary: { type: 'string' as const },
     },
   },
 };
@@ -102,7 +132,13 @@ export class AnthropicProvider implements AiProvider {
     };
   }
 
-  async scoreLoad({ system, userMessage }: { system: string; userMessage: string }): Promise<ScoreLoadResult> {
+  async scoreLoad({
+    system,
+    userMessage,
+  }: {
+    system: string;
+    userMessage: string;
+  }): Promise<ScoreLoadResult> {
     const startMs = Date.now();
 
     const response = await this.client.messages.create({
@@ -118,6 +154,39 @@ export class AnthropicProvider implements AiProvider {
     const toolUse = response.content.find((b) => b.type === 'tool_use');
     if (!toolUse || toolUse.type !== 'tool_use') {
       throw new Error('Anthropic did not return a score_load tool call');
+    }
+
+    return {
+      toolInput: toolUse.input as Record<string, unknown>,
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+      modelUsed: response.model,
+      latencyMs: Date.now() - startMs,
+    };
+  }
+
+  async rankDrivers({
+    system,
+    userMessage,
+  }: {
+    system: string;
+    userMessage: string;
+  }): Promise<RankDriversResult> {
+    const startMs = Date.now();
+
+    const response = await this.client.messages.create({
+      model: 'claude-haiku-4-5',
+      max_tokens: 1024,
+      temperature: 0,
+      system,
+      tools: [RANK_DRIVERS_TOOL_ANTHROPIC],
+      tool_choice: { type: 'tool', name: 'rank_drivers' },
+      messages: [{ role: 'user', content: userMessage }],
+    });
+
+    const toolUse = response.content.find((b) => b.type === 'tool_use');
+    if (!toolUse || toolUse.type !== 'tool_use') {
+      throw new Error('Anthropic did not return a rank_drivers tool call');
     }
 
     return {

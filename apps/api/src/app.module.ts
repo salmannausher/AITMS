@@ -11,6 +11,8 @@ import { IntakeModule } from './intake/intake.module';
 import { LoadsModule } from './loads/loads.module';
 import { BrokersModule } from './brokers/brokers.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { DriversModule } from './drivers/drivers.module';
+import { TrucksModule } from './trucks/trucks.module';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { NotificationsModule } from './notifications/notifications.module';
     LoadsModule,
     BrokersModule,
     NotificationsModule,
+    DriversModule,
+    TrucksModule,
   ],
   controllers: [AppController],
 })

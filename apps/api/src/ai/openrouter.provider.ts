@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import { type AiProvider, type ParseEmailResult, type ScoreLoadResult } from './ai-provider';
+import { type AiProvider, type ParseEmailResult, type RankDriversResult, type ScoreLoadResult } from './ai-provider';
 
 const logger = new Logger('OpenRouterProvider');
 
@@ -126,7 +126,13 @@ export class OpenRouterProvider implements AiProvider {
     };
   }
 
-  async scoreLoad({ system, userMessage }: { system: string; userMessage: string }): Promise<ScoreLoadResult> {
+  async scoreLoad({
+    system,
+    userMessage,
+  }: {
+    system: string;
+    userMessage: string;
+  }): Promise<ScoreLoadResult> {
     const startMs = Date.now();
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -177,6 +183,86 @@ export class OpenRouterProvider implements AiProvider {
     const toolCall = data.choices[0]?.message?.tool_calls?.[0];
     if (!toolCall) {
       throw new Error('OpenRouter did not return a score_load tool call');
+    }
+
+    return {
+      toolInput: JSON.parse(toolCall.function.arguments) as Record<string, unknown>,
+      inputTokens: data.usage?.prompt_tokens ?? 0,
+      outputTokens: data.usage?.completion_tokens ?? 0,
+      modelUsed: data.model ?? this.model,
+      latencyMs: Date.now() - startMs,
+    };
+  }
+
+  async rankDrivers({
+    system,
+    userMessage,
+  }: {
+    system: string;
+    userMessage: string;
+  }): Promise<RankDriversResult> {
+    const startMs = Date.now();
+
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.apiKey}`,
+        'HTTP-Referer': 'https://devsphinx.dev',
+        'X-Title': 'Devsphinx AI Dispatch',
+      },
+      body: JSON.stringify({
+        model: this.model,
+        temperature: 0,
+        max_tokens: 1024,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: userMessage },
+        ],
+        tools: [
+          {
+            type: 'function',
+            function: {
+              name: 'rank_drivers',
+              description: 'Rank available drivers for this load by suitability',
+              parameters: {
+                type: 'object',
+                required: ['ranked_drivers', 'recommendation_summary'],
+                properties: {
+                  ranked_drivers: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      required: ['driver_id', 'rank', 'score', 'reason'],
+                      properties: {
+                        driver_id: { type: 'string' },
+                        rank: { type: 'number' },
+                        score: { type: 'number', minimum: 0, maximum: 100 },
+                        reason: { type: 'string' },
+                        deadhead_miles: { type: ['number', 'null'] },
+                        eta_hours: { type: ['number', 'null'] },
+                      },
+                    },
+                  },
+                  recommendation_summary: { type: 'string' },
+                },
+              },
+            },
+          },
+        ],
+        tool_choice: { type: 'function', function: { name: 'rank_drivers' } },
+      }),
+    });
+
+    const data = (await response.json()) as OpenRouterResponse;
+
+    if (!response.ok || data.error) {
+      throw new Error(`OpenRouter rankDrivers error: ${data.error?.message ?? response.statusText}`);
+    }
+
+    const toolCall = data.choices[0]?.message?.tool_calls?.[0];
+    if (!toolCall) {
+      throw new Error('OpenRouter did not return a rank_drivers tool call');
     }
 
     return {

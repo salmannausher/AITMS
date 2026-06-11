@@ -30,12 +30,16 @@ enum UserRole {
   VIEWER
 }
 
+enum CdlClass {
+  A
+  B
+  C
+}
+
 enum DriverStatus {
   AVAILABLE
   ON_LOAD
   OFF_DUTY
-  SLEEPER_BERTH
-  INACTIVE
 }
 
 enum TruckType {
@@ -43,12 +47,14 @@ enum TruckType {
   REEFER
   FLATBED
   STEP_DECK
+  LOWBOY
+  TANKER
+  OTHER
 }
 
 enum TruckStatus {
   AVAILABLE
   IN_USE
-  IN_MAINTENANCE
   OUT_OF_SERVICE
 }
 
@@ -155,44 +161,45 @@ model Driver {
   full_name           String
   phone               String
   whatsapp_phone      String?
-  cdl_class           String
+  cdl_class           CdlClass
   endorsements        String[]     @default([])
-  home_city           String?
-  home_state          String?
-  current_location    Json?
-  hos_remaining_hours Decimal      @default(11) @db.Decimal(4, 2)
+  home_city           String
+  home_state          String
+  hos_remaining_hours Float        @default(70)
   hos_reset_at        DateTime?
   status              DriverStatus @default(AVAILABLE)
+  assigned_truck_id   String?      @unique
   created_at          DateTime     @default(now())
   updated_at          DateTime     @updatedAt
   deleted_at          DateTime?
 
   company        Company @relation(fields: [company_id], references: [id])
-  assigned_truck Truck?
-  assigned_loads Load[]
+  truck          Truck?  @relation(fields: [assigned_truck_id], references: [id])
+  assigned_loads  Load[]
 
   @@index([company_id, status])
   @@map("drivers")
 }
 
 model Truck {
-  id                 String      @id @default(uuid())
-  company_id         String
-  unit_number        String
-  type               TruckType
-  year               Int
-  make               String
-  model              String
-  vin                String?
-  status             TruckStatus @default(AVAILABLE)
-  assigned_driver_id String?     @unique
-  created_at         DateTime    @default(now())
-  updated_at         DateTime    @updatedAt
+  id          String      @id @default(uuid())
+  company_id  String
+  unit_number String
+  type        TruckType
+  year        Int?
+  make        String?
+  model       String?
+  vin         String?
+  status      TruckStatus @default(AVAILABLE)
+  created_at  DateTime    @default(now())
+  updated_at  DateTime    @updatedAt
+  deleted_at  DateTime?
 
-  company         Company @relation(fields: [company_id], references: [id])
-  assigned_driver Driver? @relation(fields: [assigned_driver_id], references: [id])
-  assigned_loads  Load[]
+  company        Company  @relation(fields: [company_id], references: [id])
+  driver         Driver?
+  assigned_loads Load[]
 
+  @@unique([company_id, unit_number])
   @@index([company_id, status])
   @@map("trucks")
 }
