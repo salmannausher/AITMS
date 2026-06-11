@@ -379,8 +379,7 @@ The MVP is done when ALL of the following are true:
 | Task 3.1 — Carrier cost settings (schema + API + UI) | ✅ Done — merged to main |
 | Task 3.2 — CacheService (Postgres-backed, nightly cleanup cron) | ✅ Done — merged to main, 26/26 tests passing |
 | Task 3.3 — Rate Analysis Agent (`load.created` → AI score) | ✅ Done — merged to main, Week 3 Gate passed |
-| Task 3.4 — Load Board UI (Supabase Realtime) | ⏳ Next — start here |
-| Task 3.5 — `/loads/[id]` detail page with score reasoning | ⏳ Next |
+| Task 4 — Load Board UI (Supabase Realtime) | ⏳ Next — start here (new session) |
 
 ### Week 3 Gate — PASSED (June 11 2026)
 | Check | Result |
