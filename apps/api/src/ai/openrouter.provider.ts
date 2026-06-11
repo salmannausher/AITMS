@@ -126,7 +126,13 @@ export class OpenRouterProvider implements AiProvider {
     };
   }
 
-  async scoreLoad({ system, userMessage }: { system: string; userMessage: string }): Promise<ScoreLoadResult> {
+  async scoreLoad({
+    system,
+    userMessage,
+  }: {
+    system: string;
+    userMessage: string;
+  }): Promise<ScoreLoadResult> {
     const startMs = Date.now();
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {

@@ -18,7 +18,36 @@
       "Bash(cat *)",
       "Bash(mkdir *)",
       "Bash(grep *)",
-      "Bash(find *)"
+      "Bash(find *)",
+      "Bash(git checkout*)",
+      "Bash(git branch*)",
+      "Bash(git rev-parse*)",
+      "Bash(sha256sum *)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "BRANCH=$(git -C \"$PWD\" rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'unknown'); if [ \"$BRANCH\" = 'main' ] || [ \"$BRANCH\" = 'master' ]; then echo \"{\\\"systemMessage\\\": \\\"⚠️  BRANCH ALERT: You are on '$BRANCH' — you MUST create a feature branch before writing any code. Run: git checkout -b feat/task-X.Y-description\\\"}\"; else echo \"{\\\"systemMessage\\\": \\\"📋 Branch: '$BRANCH' | RULE: Always create feat/task-X.Y branch BEFORE writing any code. Never commit to main.\\\"}\" ; fi",
+            "statusMessage": "Checking git branch..."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "INPUT=$(cat); CMD=$(echo \"$INPUT\" | jq -r '.tool_input.command // empty'); if echo \"$CMD\" | grep -qE '^git (commit|push)'; then BRANCH=$(git -C \"$PWD\" rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'unknown'); if [ \"$BRANCH\" = 'main' ] || [ \"$BRANCH\" = 'master' ]; then echo \"{\\\"decision\\\": \\\"block\\\", \\\"reason\\\": \\\"BLOCKED: on '$BRANCH'. Create a feature branch first: git checkout -b feat/task-X.Y-description\\\"}\"; fi; fi",
+            "statusMessage": "Checking branch safety..."
+          }
+        ]
+      }
     ]
   }
 }

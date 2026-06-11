@@ -15,7 +15,10 @@ export const CREATE_LOAD_TOOL = {
       dest_state: { type: 'string' as const, description: '2-letter state code e.g. TX' },
       pickup_date: { type: 'string' as const, description: 'ISO date YYYY-MM-DD' },
       delivery_date: { type: ['string', 'null'] as ['string', 'null'] },
-      rate: { type: ['number', 'null'] as ['number', 'null'], description: 'Total load rate in USD' },
+      rate: {
+        type: ['number', 'null'] as ['number', 'null'],
+        description: 'Total load rate in USD',
+      },
       reference_number: { type: ['string', 'null'] as ['string', 'null'] },
       broker_name: { type: ['string', 'null'] as ['string', 'null'] },
       broker_mc_number: { type: ['string', 'null'] as ['string', 'null'] },
@@ -102,7 +105,13 @@ export class AnthropicProvider implements AiProvider {
     };
   }
 
-  async scoreLoad({ system, userMessage }: { system: string; userMessage: string }): Promise<ScoreLoadResult> {
+  async scoreLoad({
+    system,
+    userMessage,
+  }: {
+    system: string;
+    userMessage: string;
+  }): Promise<ScoreLoadResult> {
     const startMs = Date.now();
 
     const response = await this.client.messages.create({

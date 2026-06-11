@@ -32,8 +32,5 @@ export interface AiProvider {
   /**
    * Score a load using the score_load tool. System prompt + JSON user message → GOOD/MARGINAL/AVOID.
    */
-  scoreLoad(params: {
-    system: string;
-    userMessage: string;
-  }): Promise<ScoreLoadResult>;
+  scoreLoad(params: { system: string; userMessage: string }): Promise<ScoreLoadResult>;
 }
