@@ -365,7 +365,7 @@ The MVP is done when ALL of the following are true:
 ---
 
 ## Current Session State
-> Last updated: June 10 2026 (end of session) — update this section at the end of every session.
+> Last updated: June 11 2026 (end of session) — update this section at the end of every session.
 
 ### Git Workflow (adopted Week 3)
 - **Never push directly to `main`** — every commit, including small fixes, test files, and docs, must go through a feature branch and PR. No exceptions.
@@ -378,9 +378,19 @@ The MVP is done when ALL of the following are true:
 |---|---|
 | Task 3.1 — Carrier cost settings (schema + API + UI) | ✅ Done — merged to main |
 | Task 3.2 — CacheService (Postgres-backed, nightly cleanup cron) | ✅ Done — merged to main, 26/26 tests passing |
-| Task 3.3 — Rate Analysis Agent (`load.created` → AI score) | ⏳ Next — start here |
-| Task 3.4 — Load Board UI (Supabase Realtime) | ⏳ Next |
+| Task 3.3 — Rate Analysis Agent (`load.created` → AI score) | ✅ Done — merged to main, Week 3 Gate passed |
+| Task 3.4 — Load Board UI (Supabase Realtime) | ⏳ Next — start here |
 | Task 3.5 — `/loads/[id]` detail page with score reasoning | ⏳ Next |
+
+### Week 3 Gate — PASSED (June 11 2026)
+| Check | Result |
+|---|---|
+| `score-load` visible in Inngest Dev Server | ✅ |
+| Load created → `status = SCORED` within 10s | ✅ |
+| GOOD/MARGINAL/AVOID logic correct vs manual calc | ✅ — "RPM 2.72 well above minimum 1.8, strong profit margin" |
+| Carrier settings saved and used in scoring | ✅ |
+| AiTask record created for every scoring call | ✅ |
+| EIA diesel price cache | ⚠️ Using $3.85 fallback — restart API after adding EIA_API_KEY to pick up live price |
 
 ### Task 3.1 — Carrier Cost Settings
 - Schema: `packages/shared/src/schemas/company-settings.schema.ts` — `carrierCostSettingsSchema` + `CarrierCostSettings`
@@ -407,6 +417,19 @@ The MVP is done when ALL of the following are true:
 - Cron: `apps/api/src/cache/cache.functions.ts` — `clean-cache` Inngest function, runs nightly at 03:00 UTC; registered in `InngestModule`
 - `CompaniesService` updated: `cache.del('company:{id}:settings')` called on settings update (replaces previous TODO)
 - Key conventions: `eia:diesel_price` TTL 86400 · `lane:{o}:{d}:{companyId}` TTL 3600 · `company:{id}:settings` TTL 300
+
+### Task 3.3 — Rate Analysis Agent
+- Types: `apps/api/src/rate-analysis/rate-analysis.types.ts` — `LoadCreatedEventData`, `LaneHistory`, `ScoringContext`, `LoadScoredEventData`
+- EIA service: `apps/api/src/rate-analysis/eia.service.ts` — fetches weekly US diesel price from EIA API; 24hr cache; falls back to $3.85/gal on any failure (scoring never blocked). Key: `EIA_API_KEY` (free from eia.gov/opendata)
+- Function: `apps/api/src/rate-analysis/rate-analysis.functions.ts` — `createScoreLoadFunction(prisma, aiProvider, cache, eia)`
+  - Trigger: `load/created` | retries: 2
+  - Step 1 `fetch-context`: load lookup + guards (not found / not PENDING / null rate / missing settings → `needs_review=true`) + costs cache-aside (TTL 300s) + lane history cache-aside (TTL 3600s, last 30 loads) + EIA diesel price + TypeScript math (all-in cost, RPM, estimated profit)
+  - Step 2 `claude-score`: `aiProvider.scoreLoad()` — `claude-haiku-4-5`, temperature 0, forced `tool_choice: score_load` → returns GOOD/MARGINAL/AVOID + reason (≤12 words) + suggested_minimum_rate + counteroffer_rate
+  - Step 3 `save-score`: `$transaction` — `updateMany where { id, status: PENDING }` race guard + `AiTask.create`
+  - Step 4: `sendEvent 'load/scored'`
+- Module: registered in `InngestModule` alongside `parse-email` and `clean-cache`; shares the same `aiProvider` instance
+- Design principle: TypeScript computes all math; Claude only makes the GOOD/MARGINAL/AVOID judgment
+- `ai_score` + `ai_score_details` (JSONB) fields were already in `init_schema` migration — no new migration needed
 
 ### Week 1 Gate Status
 | Task | Status |
@@ -497,22 +520,25 @@ The MVP is done when ALL of the following are true:
   ```
   AI_PROVIDER=openrouter        # omit or set to anything else → uses Anthropic
   OPENROUTER_API_KEY=sk-or-...
-  OPENROUTER_MODEL=google/gemini-flash-1.5   # or any OpenRouter model ID
+  OPENROUTER_MODEL=anthropic/claude-haiku-4-5   # recommended — scoring prompts tuned for it
   ```
+- `google/gemini-flash-1.5` was removed from OpenRouter — **do not use**
 - OpenRouter uses fetch + OpenAI-compatible API — no new npm packages
 - Free tier models (`:free` suffix) are heavily rate-limited; paid models recommended for testing
 - Native PDF document blocks (Anthropic-only) are skipped when using OpenRouter — text-only fallback
-- Intake Agent now accepts `AiProvider` interface instead of `Anthropic` directly — fully decoupled
+- `AiProvider` interface has two methods: `parseEmail()` and `scoreLoad()` — both providers implement both
+- Both `parse-email` and `score-load` Inngest functions use the same shared `aiProvider` instance from `InngestModule`
 - To test intake without email: use Inngest Dev Server (http://localhost:8288) → Functions → `parse-email` → Send test event
 
 ### Testing Setup
 - Framework: Jest + ts-jest (co-located `*.spec.ts` files)
 - Run: `pnpm --filter @aitms/api test`
-- 19 tests, 3 suites — all passing as of June 7 2026
+- 26 tests, 4 suites — all passing as of June 11 2026
 - Test files:
   - `src/webhooks/webhooks.service.spec.ts` — 5 tests
   - `src/mail/mail.service.spec.ts` — 4 tests
   - `src/intake/intake.functions.spec.ts` — 10 tests
+  - `src/cache/cache.service.spec.ts` — 7 tests
 - Jest config lives in `apps/api/package.json` under `"jest"` key
 
 ### Key Decisions Made
