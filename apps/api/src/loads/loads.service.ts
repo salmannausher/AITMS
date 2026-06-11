@@ -12,7 +12,7 @@ import { CreateLoadDto } from './dto/create-load.dto';
 const LOAD_DETAIL_INCLUDE = {
   broker: { select: { id: true, name: true } },
   assigned_driver: { select: { id: true, full_name: true } },
-  assigned_truck: { select: { id: true, truck_number: true } },
+  assigned_truck: { select: { id: true, unit_number: true } },
   events: {
     orderBy: { created_at: 'asc' as const },
   },

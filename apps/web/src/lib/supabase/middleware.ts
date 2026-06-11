@@ -43,7 +43,7 @@ export async function updateSession(request: NextRequest) {
 
   if (user && isPublicRoute) {
     const dashboardUrl = request.nextUrl.clone();
-    dashboardUrl.pathname = '/';
+    dashboardUrl.pathname = '/dashboard';
     return NextResponse.redirect(dashboardUrl);
   }
 
