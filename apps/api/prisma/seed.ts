@@ -14,7 +14,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 // Acme Trucking LLC — the demo company (set via inbound_email in CLAUDE.md)
-const COMPANY_ID = '29c19f12-0d3b-4c30-8c4a-1f9c2d02eb60';
+const COMPANY_ID = '5fd3428b-775a-4eb8-9c6d-517cf72b5b16';
 
 async function main() {
   console.log('Seeding drivers and trucks for Acme Trucking LLC...');
