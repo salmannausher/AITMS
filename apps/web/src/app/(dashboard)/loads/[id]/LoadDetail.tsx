@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { AiAnalysisPanel } from '@/components/loads/AiAnalysisPanel';
+import { DriverRecommendations } from '@/components/loads/DriverRecommendations';
 import { ActionBar } from '@/components/loads/ActionBar';
 import { EventTimeline } from '@/components/loads/EventTimeline';
 import { MessagesTab } from '@/components/loads/MessagesTab';
@@ -65,6 +66,9 @@ export function LoadDetail({ load: initialLoad }: { load: LoadDetailType }) {
 
       {/* AI Analysis */}
       <AiAnalysisPanel details={load.ai_score_details} rate={load.rate} />
+
+      {/* Driver Recommendations */}
+      <DriverRecommendations details={load.ai_score_details as Record<string, unknown> | null} />
 
       {/* Action bar */}
       <ActionBar load={load} onStatusChange={setLoad} />

@@ -105,6 +105,20 @@ export function useNotifications(companyId: string) {
           persistent: true,
         });
       })
+      .on('broadcast', { event: 'dispatch_ready' }, (payload) => {
+        const p = payload.payload as {
+          loadId: string;
+          driverCount: number;
+          origin: string;
+          dest: string;
+        };
+        addNotification({
+          type: 'DISPATCH_READY',
+          message: `${p.driverCount} driver${p.driverCount === 1 ? '' : 's'} ranked for ${p.origin} → ${p.dest}`,
+          loadId: p.loadId,
+          persistent: false,
+        });
+      })
       .subscribe();
 
     return () => {

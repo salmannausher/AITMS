@@ -8,6 +8,7 @@ import { createParseEmailFunction } from '../intake/intake.functions';
 import { createCleanCacheFunction } from '../cache/cache.functions';
 import { createScoreLoadFunction } from '../rate-analysis/rate-analysis.functions';
 import { EiaService } from '../rate-analysis/eia.service';
+import { createRankDriversFunction } from '../dispatch/dispatch.functions';
 import { AnthropicProvider } from '../ai/anthropic.provider';
 import { OpenRouterProvider } from '../ai/openrouter.provider';
 import { INNGEST_FUNCTIONS } from './inngest.tokens';
@@ -27,7 +28,8 @@ const logger = new Logger('InngestModule');
           provider === 'openrouter'
             ? (() => {
                 const apiKey = process.env['OPENROUTER_API_KEY'];
-                if (!apiKey) throw new Error('OPENROUTER_API_KEY is required when AI_PROVIDER=openrouter');
+                if (!apiKey)
+                  throw new Error('OPENROUTER_API_KEY is required when AI_PROVIDER=openrouter');
                 const model = process.env['OPENROUTER_MODEL'];
                 logger.log(`AI provider: OpenRouter (model: ${model ?? 'default'})`);
                 return new OpenRouterProvider(apiKey, model);
@@ -45,6 +47,7 @@ const logger = new Logger('InngestModule');
           createParseEmailFunction(prisma, aiProvider),
           createCleanCacheFunction(prisma),
           createScoreLoadFunction(prisma, aiProvider, cache, eia),
+          createRankDriversFunction(prisma, aiProvider),
         ];
       },
       inject: [PrismaService, CacheService],
