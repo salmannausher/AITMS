@@ -2,6 +2,8 @@
 // Shared TypeScript types — imported by both apps/web and apps/api
 // ============================================================
 
+export type { NotificationType, AppNotification } from './notifications';
+
 export type UserRole = 'OWNER' | 'DISPATCHER' | 'VIEWER';
 
 /** Shape stored in Supabase JWT custom claims (app_metadata) */
