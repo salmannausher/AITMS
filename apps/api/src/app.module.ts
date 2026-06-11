@@ -10,6 +10,7 @@ import { MailModule } from './mail/mail.module';
 import { IntakeModule } from './intake/intake.module';
 import { LoadsModule } from './loads/loads.module';
 import { BrokersModule } from './brokers/brokers.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { BrokersModule } from './brokers/brokers.module';
     IntakeModule,
     LoadsModule,
     BrokersModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
 })
