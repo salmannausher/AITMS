@@ -1,66 +1,94 @@
-// Approximate road miles between state centroids. Used for deadhead estimation.
-// Not exhaustive — returns null for unlisted pairs; caller treats null as "unknown".
-const DISTANCES: Record<string, Record<string, number>> = {
-  AL: { GA: 160, FL: 320, MS: 180, TN: 190, SC: 340 },
-  AK: {},
-  AZ: { CA: 370, NV: 280, NM: 325, UT: 490, CO: 590 },
-  AR: { MO: 260, TN: 300, MS: 200, LA: 310, TX: 380, OK: 260 },
-  CA: { AZ: 370, NV: 420, OR: 640, NM: 790 },
-  CO: { NM: 350, UT: 470, WY: 300, KS: 470, NE: 480, AZ: 590 },
-  CT: { NY: 110, MA: 100, RI: 65 },
-  DE: { MD: 75, PA: 70, NJ: 95 },
-  FL: { GA: 340, AL: 320 },
-  GA: { AL: 160, FL: 340, SC: 245, TN: 280, NC: 430 },
-  HI: {},
-  ID: { OR: 410, WA: 300, MT: 470, WY: 600, NV: 560, UT: 380 },
-  IL: { IN: 170, WI: 210, MO: 290, IA: 310, KY: 390 },
-  IN: { IL: 170, OH: 170, KY: 110, MI: 280 },
-  IA: { MN: 250, WI: 330, IL: 310, MO: 290, NE: 390, SD: 330 },
-  KS: { MO: 260, OK: 280, CO: 470, NE: 290 },
-  KY: { IN: 110, OH: 160, TN: 180, VA: 310, WV: 240, IL: 390 },
-  LA: { MS: 190, TX: 510, AR: 310 },
-  ME: { NH: 140, MA: 290 },
-  MD: { VA: 170, DC: 40, DE: 75, PA: 100 },
-  MA: { CT: 100, NY: 200, RI: 60, NH: 70, VT: 220 },
-  MI: { IN: 280, OH: 210, WI: 330 },
-  MN: { WI: 290, IA: 250, ND: 390, SD: 310 },
-  MS: { AL: 180, LA: 190, TN: 280, AR: 200 },
-  MO: { IL: 290, AR: 260, KS: 260, IA: 290, KY: 420, TN: 380 },
-  MT: { ID: 470, WY: 490, ND: 560, SD: 740 },
-  NE: { IA: 390, KS: 290, CO: 480, SD: 380, MO: 400 },
-  NV: { CA: 420, AZ: 280, UT: 420, ID: 560 },
-  NH: { ME: 140, MA: 70, VT: 120 },
-  NJ: { NY: 95, PA: 85, DE: 95 },
-  NM: { TX: 430, CO: 350, AZ: 325, OK: 540 },
-  NY: { NJ: 95, CT: 110, PA: 170, MA: 200, VT: 300 },
-  NC: { VA: 220, SC: 180, TN: 370, GA: 430 },
-  ND: { MN: 390, SD: 320, MT: 560 },
-  OH: { IN: 170, KY: 160, PA: 130, WV: 200, MI: 210 },
-  OK: { TX: 380, KS: 280, AR: 260, MO: 430, NM: 540 },
-  OR: { WA: 200, CA: 640, ID: 410, NV: 600 },
-  PA: { OH: 130, NY: 170, NJ: 85, MD: 100, WV: 200, DE: 70 },
-  RI: { MA: 60, CT: 65 },
-  SC: { GA: 245, NC: 180 },
-  SD: { ND: 320, MN: 310, NE: 380, IA: 330, WY: 540, MT: 740 },
-  TN: { KY: 180, AL: 190, GA: 280, NC: 370, VA: 420, AR: 300, MS: 280, MO: 380 },
-  TX: { OK: 380, AR: 380, LA: 510, NM: 430 },
-  UT: { NV: 420, AZ: 490, CO: 470, ID: 380, WY: 430 },
-  VT: { NY: 300, NH: 120, MA: 220 },
-  VA: { NC: 220, MD: 170, WV: 200, KY: 310, TN: 420, DC: 120 },
-  WA: { OR: 200, ID: 300 },
-  WV: { VA: 200, KY: 240, OH: 200, PA: 200 },
-  WI: { MN: 290, IL: 210, MI: 330, IA: 330 },
-  WY: { CO: 300, UT: 430, ID: 600, MT: 490, SD: 540, NE: 500 },
-  DC: { MD: 40, VA: 120 },
+// State centroid coordinates (lat, lng) for all 50 US states + DC.
+// Used to estimate deadhead miles between any two states via Haversine × road factor.
+const STATE_CENTROIDS: Record<string, [number, number]> = {
+  AL: [32.7794, -86.8287],
+  AK: [64.4459, -153.3694],
+  AZ: [34.2744, -111.6602],
+  AR: [34.8938, -92.4426],
+  CA: [37.1841, -119.4696],
+  CO: [38.9972, -105.5478],
+  CT: [41.6219, -72.7273],
+  DE: [38.9896, -75.5050],
+  DC: [38.9101, -77.0147],
+  FL: [28.6305, -82.4497],
+  GA: [32.6415, -83.4426],
+  HI: [20.2927, -156.3737],
+  ID: [44.3509, -114.6130],
+  IL: [40.0417, -89.1965],
+  IN: [39.8942, -86.2816],
+  IA: [42.0751, -93.4960],
+  KS: [38.4937, -98.3804],
+  KY: [37.5347, -85.3021],
+  LA: [31.0689, -91.9968],
+  ME: [45.3695, -69.2428],
+  MD: [39.0550, -76.7909],
+  MA: [42.2596, -71.8083],
+  MI: [44.3467, -85.4102],
+  MN: [46.2807, -94.3053],
+  MS: [32.7364, -89.6678],
+  MO: [38.3566, -92.4580],
+  MT: [46.8797, -110.3626],
+  NE: [41.5378, -99.7951],
+  NV: [39.3289, -116.6312],
+  NH: [43.6805, -71.5811],
+  NJ: [40.1907, -74.6728],
+  NM: [34.4071, -106.1126],
+  NY: [42.9538, -75.5268],
+  NC: [35.5557, -79.3877],
+  ND: [47.4501, -100.4659],
+  OH: [40.2862, -82.7937],
+  OK: [35.5889, -97.4943],
+  OR: [43.9336, -120.5583],
+  PA: [40.8781, -77.7996],
+  RI: [41.6762, -71.5562],
+  SC: [33.9169, -80.8964],
+  SD: [44.4443, -100.2263],
+  TN: [35.8580, -86.3505],
+  TX: [31.4757, -99.3312],
+  UT: [39.3210, -111.0937],
+  VT: [44.0687, -72.6658],
+  VA: [37.5215, -78.8537],
+  WA: [47.3826, -120.4472],
+  WV: [38.6409, -80.6227],
+  WI: [44.6243, -89.9941],
+  WY: [42.9957, -107.5512],
 };
 
+// Road distance ≈ straight-line × 1.3 (accounts for road routing vs crow-flies).
+const ROAD_FACTOR = 1.3;
+
+function toRad(deg: number): number {
+  return (deg * Math.PI) / 180;
+}
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+const KM_TO_MILES = 0.621371;
+
 /**
- * Returns approximate road miles between two state centroids.
- * Symmetric — checks both directions. Returns null if unknown.
+ * Returns estimated road miles between two state centroids.
+ * Works for any US state pair — never returns null.
+ * Returns 0 for same-state. Returns null only for unknown state codes.
  */
 export function getDeadheadMiles(fromState: string, toState: string): number | null {
-  if (fromState === toState) return 0;
   const a = fromState.toUpperCase();
   const b = toState.toUpperCase();
-  return DISTANCES[a]?.[b] ?? DISTANCES[b]?.[a] ?? null;
+
+  if (a === b) return 0;
+
+  const c1 = STATE_CENTROIDS[a];
+  const c2 = STATE_CENTROIDS[b];
+
+  if (!c1 || !c2) return null;
+
+  const straightLineMiles = haversineKm(c1[0], c1[1], c2[0], c2[1]) * KM_TO_MILES;
+  return Math.round(straightLineMiles * ROAD_FACTOR);
 }
