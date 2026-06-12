@@ -25,3 +25,10 @@ export const createLoadSchema = z.object({
 });
 
 export type CreateLoadInput = z.infer<typeof createLoadSchema>;
+
+export const assignLoadSchema = z.object({
+  driver_id: z.string().uuid(),
+  truck_id: z.string().uuid(),
+});
+
+export type AssignLoadInput = z.infer<typeof assignLoadSchema>;

@@ -6,6 +6,7 @@ export interface LoadEvent {
   to_status: string | null;
   actor_type: string;
   actor_id: string | null;
+  actor_name: string | null;
   metadata: unknown;
   created_at: string;
 }
@@ -40,7 +41,10 @@ export interface LoadDetail {
   ai_score_details: unknown;
   broker: { id: string; name: string } | null;
   assigned_driver: { id: string; full_name: string } | null;
-  assigned_truck: { id: string; truck_number: string } | null;
+  assigned_truck: { id: string; unit_number: string } | null;
+  assigned_by_user_id: string | null;
+  assigned_at: string | null;
+  pod_document_url: string | null;
   events: LoadEvent[];
   messages: LoadMessage[];
 }

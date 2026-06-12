@@ -14,11 +14,15 @@ export interface DriverCandidate {
   endorsements: string[];
   assigned_truck_id: string | null;
   truck_type: string | null;
+  truck_unit_number: string | null;
 }
 
 export interface RankedDriver {
   driver_id: string;
   driver_name: string; // enriched after Claude call — not from Claude output
+  truck_id: string | null; // enriched — assigned_truck_id
+  truck_unit_number: string | null; // enriched
+  truck_type: string | null; // enriched
   rank: number;
   score: number; // 0-100
   reason: string; // ≤12 words

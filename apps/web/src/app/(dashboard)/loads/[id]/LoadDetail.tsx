@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { AiAnalysisPanel } from '@/components/loads/AiAnalysisPanel';
 import { DriverRecommendations } from '@/components/loads/DriverRecommendations';
+import { DispatchRecommendationsPanel } from '@/components/loads/DispatchRecommendationsPanel';
+import { StatusProgressionPanel } from '@/components/loads/StatusProgressionPanel';
 import { ActionBar } from '@/components/loads/ActionBar';
 import { EventTimeline } from '@/components/loads/EventTimeline';
 import { MessagesTab } from '@/components/loads/MessagesTab';
@@ -35,7 +37,7 @@ function fmtDate(iso: string | null) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export function LoadDetail({ load: initialLoad }: { load: LoadDetailType }) {
+export function LoadDetail({ load: initialLoad, currentUserId }: { load: LoadDetailType; currentUserId: string }) {
   const [load, setLoad] = useState(initialLoad);
 
   const refetch = useCallback(async () => {
@@ -100,17 +102,32 @@ export function LoadDetail({ load: initialLoad }: { load: LoadDetailType }) {
           <Field label="Ref #" value={load.reference_number} />
           <Field label="Broker" value={load.broker?.name ?? null} />
           <Field label="Driver" value={load.assigned_driver?.full_name ?? 'Unassigned'} />
-          <Field label="Truck" value={load.assigned_truck?.truck_number ?? null} />
+          <Field label="Truck" value={load.assigned_truck?.unit_number ?? null} />
         </dl>
       </div>
 
       {/* AI Analysis */}
       <AiAnalysisPanel details={load.ai_score_details} rate={load.rate} />
 
-      {/* Driver Recommendations */}
-      <DriverRecommendations details={load.ai_score_details as Record<string, unknown> | null} />
+      {/* Driver Recommendations / Dispatch Panel */}
+      {load.status === 'ACCEPTED' ? (
+        <DispatchRecommendationsPanel
+          load={load}
+          currentUserId={currentUserId}
+          onAssigned={setLoad}
+        />
+      ) : (
+        <DriverRecommendations details={load.ai_score_details as Record<string, unknown> | null} />
+      )}
 
-      {/* Action bar */}
+      {/* Status progression (ASSIGNED → AT_PICKUP → LOADED → EN_ROUTE → DELIVERED) */}
+      <StatusProgressionPanel
+        load={load}
+        currentUserId={currentUserId}
+        onStatusChange={setLoad}
+      />
+
+      {/* Action bar (Accept / Reject — PENDING/SCORED only) */}
       <ActionBar load={load} onStatusChange={setLoad} />
 
       {/* Timeline / Messages tabs */}
@@ -125,7 +142,7 @@ export function LoadDetail({ load: initialLoad }: { load: LoadDetailType }) {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="timeline">
-            <EventTimeline events={load.events} />
+            <EventTimeline events={load.events} currentUserId={currentUserId} />
           </TabsContent>
           <TabsContent value="messages">
             <MessagesTab messages={load.messages} />

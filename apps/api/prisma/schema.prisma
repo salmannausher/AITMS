@@ -244,9 +244,12 @@ model Load {
   needs_review       Boolean    @default(false)
   ai_score           AiScore?
   ai_score_details   Json?
-  assigned_driver_id String?
-  assigned_truck_id  String?
-  source             LoadSource @default(EMAIL)
+  assigned_driver_id   String?
+  assigned_truck_id    String?
+  assigned_by_user_id  String?
+  assigned_at          DateTime?
+  pod_document_url     String?
+  source               LoadSource @default(EMAIL)
   raw_email_id       String?
   created_at         DateTime   @default(now())
   updated_at         DateTime   @updatedAt
@@ -268,11 +271,13 @@ model Load {
 model LoadEvent {
   id          String   @id @default(uuid())
   load_id     String
+  company_id  String?
   event_type  String
   from_status String?
   to_status   String?
   actor_type  String
   actor_id    String?
+  actor_name  String?
   metadata    Json     @default("{}")
   created_at  DateTime @default(now())
 

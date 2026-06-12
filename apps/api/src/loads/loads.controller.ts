@@ -14,6 +14,7 @@ import {
 import { LoadStatus } from '@prisma/client';
 import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { AuthenticatedRequest, CompanyGuard } from '../common/guards/company.guard';
+import { AssignLoadDto } from './dto/assign-load.dto';
 import { CreateLoadDto } from './dto/create-load.dto';
 import { LoadsService } from './loads.service';
 
@@ -24,6 +25,10 @@ class UpdateStatusDto {
   @IsOptional()
   @IsString()
   reason?: string;
+
+  @IsOptional()
+  @IsString()
+  pod_url?: string;
 }
 
 @Controller('loads')
@@ -60,12 +65,19 @@ export class LoadsController {
       req.userId,
       dto.status,
       dto.reason,
+      dto.pod_url,
     );
   }
 
   @Patch(':id/reviewed')
   markReviewed(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.loadsService.markReviewed(id, req.companyId, req.userId);
+  }
+
+  @Post(':id/assign')
+  @HttpCode(HttpStatus.OK)
+  assign(@Param('id') id: string, @Body() dto: AssignLoadDto, @Req() req: AuthenticatedRequest) {
+    return this.loadsService.assignLoad(id, dto, req.companyId, req.userId);
   }
 
   @Post()
