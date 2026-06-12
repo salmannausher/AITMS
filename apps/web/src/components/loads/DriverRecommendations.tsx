@@ -2,6 +2,7 @@
 
 interface RankedDriver {
   driver_id: string;
+  driver_name?: string;
   rank: number;
   score: number;
   reason: string;
@@ -48,22 +49,23 @@ export function DriverRecommendations({ details }: Props) {
             </span>
 
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                {/* Score bar */}
-                <div className="h-1.5 w-16 rounded bg-gray-100 overflow-hidden">
-                  <div
-                    className="h-full rounded"
-                    style={{
-                      width: `${d.score}%`,
-                      backgroundColor: scoreColor(d.score),
-                    }}
-                  />
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium text-gray-900">
+                  {d.driver_name ?? d.driver_id}
+                </span>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <div className="h-1.5 w-16 rounded bg-gray-100 overflow-hidden">
+                    <div
+                      className="h-full rounded"
+                      style={{ width: `${d.score}%`, backgroundColor: scoreColor(d.score) }}
+                    />
+                  </div>
+                  <span className="text-xs text-gray-500">{d.score}/100</span>
                 </div>
-                <span className="text-xs text-gray-500">{d.score}/100</span>
               </div>
-              <p className="text-xs text-gray-700 mt-0.5">{d.reason}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{d.reason}</p>
               {(d.deadhead_miles != null || d.eta_hours != null) && (
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gray-400 mt-0.5">
                   {d.deadhead_miles != null && `${d.deadhead_miles} mi deadhead`}
                   {d.deadhead_miles != null && d.eta_hours != null && ' · '}
                   {d.eta_hours != null && `~${d.eta_hours}h ETA`}

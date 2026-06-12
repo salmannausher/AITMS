@@ -203,6 +203,26 @@ Return ONLY a rank_drivers tool call. Rank up to 5 drivers, best first.`;
         },
       );
 
+      // Enrich Claude's output from TypeScript data — Claude only returns driver_id
+      // and may omit deadhead_miles/eta_hours. Override with pre-computed values.
+      // Done outside step.run so enrichedRanked is in scope for Step 4.
+      const driverMap = new Map(drivers.map((d) => [d.id, d]));
+      const enrichedRanked: RankDriversToolOutput = {
+        ...ranked,
+        ranked_drivers: ranked.ranked_drivers.map((r) => {
+          const d = driverMap.get(r.driver_id);
+          const deadheadMiles = d?.deadhead_miles ?? r.deadhead_miles ?? null;
+          const etaHours =
+            deadheadMiles != null ? Math.round((deadheadMiles / 55) * 10) / 10 : null;
+          return {
+            ...r,
+            driver_name: d?.full_name ?? 'Unknown Driver',
+            deadhead_miles: deadheadMiles,
+            eta_hours: etaHours,
+          };
+        }),
+      };
+
       // ── Step 3: Persist results to AiTask + update load ───────────────────
       await step.run('save-rankings', async () => {
         // Fetch existing ai_score_details BEFORE the transaction to keep it short.
@@ -229,7 +249,7 @@ Return ONLY a rank_drivers tool call. Rank up to 5 drivers, best first.`;
                   origin: `${load.origin_state}`,
                   dest: `${load.dest_state}`,
                 },
-                output: ranked as unknown as Prisma.InputJsonValue,
+                output: enrichedRanked as unknown as Prisma.InputJsonValue,
                 model: modelUsed,
                 input_tokens: inputTokens,
                 output_tokens: outputTokens,
@@ -242,9 +262,9 @@ Return ONLY a rank_drivers tool call. Rank up to 5 drivers, best first.`;
               data: {
                 ai_score_details: {
                   ...existingDetails,
-                  driver_rankings: ranked,
+                  driver_rankings: enrichedRanked as unknown,
                   driver_rankings_at: new Date().toISOString(),
-                } as Prisma.InputJsonValue,
+                } as unknown as Prisma.InputJsonValue,
               },
             }),
           ],
@@ -257,15 +277,16 @@ Return ONLY a rank_drivers tool call. Rank up to 5 drivers, best first.`;
         data: {
           loadId,
           companyId,
-          topDriverId: ranked.ranked_drivers[0]?.driver_id ?? null,
-          driverCount: ranked.ranked_drivers.length,
+          topDriverId: enrichedRanked.ranked_drivers[0]?.driver_id ?? null,
+          topDriverName: enrichedRanked.ranked_drivers[0]?.driver_name ?? null,
+          driverCount: enrichedRanked.ranked_drivers.length,
         },
       });
 
       logger.log(
-        `Load ${loadId} driver rankings saved. Top: ${ranked.ranked_drivers[0]?.driver_id ?? 'none'}`,
+        `Load ${loadId} driver rankings saved. Top: ${enrichedRanked.ranked_drivers[0]?.driver_name ?? 'none'}`,
       );
-      return { loadId, rankedCount: ranked.ranked_drivers.length };
+      return { loadId, rankedCount: enrichedRanked.ranked_drivers.length };
     },
   );
 }

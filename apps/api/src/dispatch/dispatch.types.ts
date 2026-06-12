@@ -18,6 +18,7 @@ export interface DriverCandidate {
 
 export interface RankedDriver {
   driver_id: string;
+  driver_name: string; // enriched after Claude call — not from Claude output
   rank: number;
   score: number; // 0-100
   reason: string; // ≤12 words
