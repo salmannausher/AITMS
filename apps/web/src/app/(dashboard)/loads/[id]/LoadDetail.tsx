@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { AiAnalysisPanel } from '@/components/loads/AiAnalysisPanel';
 import { DriverRecommendations } from '@/components/loads/DriverRecommendations';
@@ -54,6 +54,27 @@ export function LoadDetail({ load: initialLoad }: { load: LoadDetailType }) {
   }, [initialLoad.id]);
 
   useLoadDetailRealtime(initialLoad.id, initialLoad.company_id, refetch);
+
+  // Polling fallback: when load is ACCEPTED and driver rankings haven't arrived yet,
+  // poll every 5s (up to 90s) in case Supabase Realtime misses the row update.
+  const pollCountRef = useRef(0);
+  useEffect(() => {
+    const hasRankings = !!(load.ai_score_details as Record<string, unknown> | null)?.['driver_rankings'];
+    if (load.status !== 'ACCEPTED' || hasRankings) {
+      pollCountRef.current = 0;
+      return;
+    }
+    pollCountRef.current = 0;
+    const timer = setInterval(() => {
+      pollCountRef.current += 1;
+      if (pollCountRef.current > 18) {
+        clearInterval(timer);
+        return;
+      }
+      void refetch();
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [load.status, load.ai_score_details, refetch]);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 space-y-5" style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
