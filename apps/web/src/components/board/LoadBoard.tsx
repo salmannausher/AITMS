@@ -55,24 +55,34 @@ interface LoadBoardProps {
 }
 
 export function LoadBoard({ initialLoads, companyId }: LoadBoardProps) {
-  const { loads, setLoads, stats, isStatsLoading, grouped } = useLoads(initialLoads);
+  const { loads, setLoads, mergeFreshLoads, stats, isStatsLoading, grouped } = useLoads(initialLoads);
   const { notifications, onLoadEvent } = useNotifications(companyId);
   const searchParams = useSearchParams();
   const filterNeedsReview = searchParams.get('filter') === 'needs_review';
 
   const handleLoadChange = useCallback(
     (payload: RealtimePostgresChangesPayload<Load>) => {
-      if (payload.eventType === 'INSERT') {
-        setLoads((prev) => [...prev, payload.new]);
-      } else if (payload.eventType === 'UPDATE') {
-        setLoads((prev) =>
-          prev.map((l) => (l.id === payload.new.id ? { ...l, ...payload.new } : l)),
-        );
+      if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+        // Realtime payloads lack joined relations (broker, assigned_driver).
+        // Fetch the full list so cards render with complete data.
+        fetch('/api/loads')
+          .then((r) => r.ok ? r.json() : null)
+          .then((data) => { if (data) mergeFreshLoads(data as Load[]); })
+          .catch(() => {
+            // Fallback: apply raw payload so at least status/score update.
+            if (payload.eventType === 'INSERT') {
+              setLoads((prev) => [...prev, payload.new]);
+            } else {
+              setLoads((prev) =>
+                prev.map((l) => (l.id === payload.new.id ? { ...l, ...payload.new } : l)),
+              );
+            }
+          });
       } else if (payload.eventType === 'DELETE') {
         setLoads((prev) => prev.filter((l) => l.id !== payload.old.id));
       }
     },
-    [setLoads],
+    [setLoads, mergeFreshLoads],
   );
 
   const { connected } = useLoadsBoardRealtime(companyId, handleLoadChange, onLoadEvent);
