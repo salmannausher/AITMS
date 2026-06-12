@@ -85,7 +85,7 @@ export function createParseEmailFunction(
         fromEmail,
         subject,
         textBody,
-        attachments,
+        attachments = [],
       } = event.data as ParseEmailEventData;
 
       // ── Step 1: Extract PDF text ────────────────────────────────────────
