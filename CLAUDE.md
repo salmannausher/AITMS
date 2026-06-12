@@ -365,7 +365,7 @@ The MVP is done when ALL of the following are true:
 ---
 
 ## Current Session State
-> Last updated: June 11 2026 (end of session) — update this section at the end of every session.
+> Last updated: June 12 2026 (end of session) — update this section at the end of every session.
 
 ### Git Workflow (adopted Week 3)
 - **Never push directly to `main`** — every commit, including small fixes, test files, and docs, must go through a feature branch and PR. No exceptions.
@@ -373,16 +373,28 @@ The MVP is done when ALL of the following are true:
 - PR flow: push branch → `gh pr create` → CI gate → squash merge to main
 - Set branch protection on `main` in GitHub (require CI status check) before next deploy
 
-### Week 4 Status
+### Week 5 Status
 | Task | Status |
 |---|---|
-| Task 3.1 — Carrier cost settings (schema + API + UI) | ✅ Done — merged to main |
-| Task 3.2 — CacheService (Postgres-backed, nightly cleanup cron) | ✅ Done — merged to main, 26/26 tests passing |
-| Task 3.3 — Rate Analysis Agent (`load.created` → AI score) | ✅ Done — merged to main, Week 3 Gate passed |
-| Task 4.1 — Load Board UI (GET /loads, GET /loads/stats, kanban board) | ✅ Done — merged to main (PR #12) |
-| Task 4.2 — Load Detail page (AI Analysis Panel, Counter-offer Sheet) | ✅ Done — merged to main (PR #12) |
-| Task 4.3 — Notification infrastructure (toasts, NeedsReviewBanner, driver alert stub) | ✅ Done — merged to main (PR #11) |
-| Post-login fix (blank page, truck_number field) | ✅ Done — PR #13 pending merge |
+| Task 5.1 — Driver & Fleet board (GET /drivers, GET /trucks, driver availability UI) | ✅ Done — merged to main |
+| Task 5.2 — Dispatch Agent (`load/accepted` → rank-drivers → save to ai_score_details) | ✅ Done — merged to main (PR #14) |
+| Week 5 Gate fixes — hard HOS + equipment pre-filters, seed 4 drivers | ✅ Done — merged to main |
+| fix: driver names showing UUID instead of full name | ✅ Done — merged to main (PR #19) |
+| fix: deadhead miles + ETA blank on recommendations | ✅ Done — merged to main (PR #20) |
+| fix: hydration mismatch on EventTimeline date formatting | ✅ Done — merged to main (PR #21) |
+| fix: `attachments.filter` TypeError when payload has no attachments | ✅ Done — merged to main |
+| fix: load detail auto-refresh (poll every 5s when ACCEPTED, no rankings yet) | ✅ Done — merged to main (PR #23) |
+| fix: dashboard board auto-refresh (poll every 8s when PENDING/ACCEPTED loads exist) | ✅ Done — merged to main (PR #24) |
+
+### Week 5 Gate — PASSED (June 12 2026)
+| Check | Result |
+|---|---|
+| `rank-drivers` visible in Inngest Dev Server | ✅ |
+| Accept a load → top driver recommendations appear on load detail page | ✅ — auto-refresh, no reload needed |
+| HOS filter blocks driver with <required hours | ✅ — Tanya Williams (4h) blocked |
+| Equipment filter blocks flatbed driver for dry van load | ✅ — Dale Cooper (FLATBED) blocked |
+| AiTask logged for every dispatch ranking call | ✅ |
+| Load scored (PENDING→SCORED) appears on dashboard without reload | ✅ — 8s polling fallback |
 
 ### Week 4 Gate — PASSED (June 11 2026)
 | Check | Result |
@@ -437,6 +449,48 @@ The MVP is done when ALL of the following are true:
 - Root `page.tsx` was an empty `<div>` — now redirects to `/dashboard`
 - Middleware redirected logged-in users to `/` instead of `/dashboard`
 - `LOAD_DETAIL_INCLUDE` used `truck_number` (not in schema) → fixed to `unit_number`
+
+### Task 5 — Dispatch Agent + Driver Board
+
+#### Dispatch Agent (`apps/api/src/dispatch/`)
+- `dispatch.types.ts` — `LoadAcceptedEventData`, `DriverCandidate`, `RankedDriver`, `RankDriversToolOutput`
+- `state-distances.ts` — Haversine formula over state centroids × 1.3 road factor; works for any US state pair; never returns null for known states
+- `dispatch.functions.ts` — `createRankDriversFunction(prisma, aiProvider)`
+  - Trigger: `load/accepted` | retries: 2
+  - Step 1 `fetch-context`: load + AVAILABLE drivers + **hard HOS pre-filter** (need ≥ `ceil(miles/55) + 2`h) + **hard equipment pre-filter** (DRY_VAN/REEFER load requires DRY_VAN/REEFER truck; FLATBED/STEP_DECK requires FLATBED/STEP_DECK/LOWBOY) + deadhead miles pre-computed per driver
+  - Step 2 `claude-rank`: `aiProvider.rankDrivers()` — `claude-haiku-4-5`, temp 0, forced tool_choice `rank_drivers` → returns ranked list with scores/reasons
+  - Enrichment (outside step.run): driver names + deadhead/ETA overwritten from TypeScript data — Claude only returns `driver_id`
+  - Step 3 `save-rankings`: `findUnique` outside transaction + `$transaction([aiTask.create, load.update])` array form (avoids 5s PgBouncer interactive timeout)
+  - Step 4: emit `load/drivers-ranked`
+- Registered in `InngestModule` alongside `parse-email`, `score-load`, `clean-cache`
+
+#### AiProvider interface update
+- Added `rankDrivers(params: { system: string; userMessage: string }): Promise<RankDriversResult>`
+- Both `AnthropicProvider` and `OpenRouterProvider` implement all 3 methods
+- `intake.functions.spec.ts` mock must include `rankDrivers: jest.fn()`
+
+#### Frontend additions — Driver Recommendations
+- `components/loads/DriverRecommendations.tsx` — reads `ai_score_details.driver_rankings`; shows rank badge (color-coded), score bar, reason, deadhead/ETA
+- `hooks/useLoadDetailRealtime.ts` — Supabase postgres_changes on single load row (unreliable for `id=eq.{uuid}` — polling fallback added)
+- `app/(dashboard)/loads/[id]/LoadDetail.tsx` — `refetch` callback + `useLoadDetailRealtime` + polling fallback: polls every 5s when `status === ACCEPTED` and no `driver_rankings` yet; stops after 90s or when rankings appear
+
+#### Dashboard auto-refresh fix (PR #24)
+- `hooks/useLoads.ts` — 8s polling loop when any PENDING/ACCEPTED loads exist; merges fresh data from `/api/loads` via `mergeFreshLoads`; stops when no qualifying loads remain
+- `components/board/LoadBoard.tsx` — Realtime INSERT/UPDATE now triggers full `/api/loads` fetch (raw payload lacks joins); raw payload used as fallback if fetch fails
+
+#### Seed data (`apps/api/prisma/seed.ts`) — 4 drivers for gate testing, company `5fd3428b-775a-4eb8-9c6d-517cf72b5b16`
+| Driver | State | Truck | HOS | Gate result |
+|---|---|---|---|---|
+| Marcus Johnson | IL | DRY_VAN T-101 | 65h | ✅ Eligible |
+| Rosa Martinez | TX | REEFER T-102 | 48h | ✅ Eligible |
+| Dale Cooper | GA | FLATBED T-103 | 55h | ❌ Equipment-blocked (dry van load) |
+| Tanya Williams | IN | DRY_VAN T-104 | 4h | ❌ HOS-blocked |
+
+#### Key bug fixes shipped this session
+- `enrichedRanked` defined outside `step.run` so it's in scope for Step 4 `sendEvent`
+- `InputJsonValue` cast: `as unknown as Prisma.InputJsonValue` for JSONB merge
+- `attachments` defaulted to `[]` in destructuring: `attachments = []` — prevents `TypeError: attachments.filter is not a function` when Inngest Dev Server omits the field
+- Hydration mismatch in `EventTimeline`: replaced `toLocaleString()` with UTC-based manual formatter
 
 ### Task 3.1 — Carrier Cost Settings
 - Schema: `packages/shared/src/schemas/company-settings.schema.ts` — `carrierCostSettingsSchema` + `CarrierCostSettings`
@@ -572,7 +626,7 @@ The MVP is done when ALL of the following are true:
 - OpenRouter uses fetch + OpenAI-compatible API — no new npm packages
 - Free tier models (`:free` suffix) are heavily rate-limited; paid models recommended for testing
 - Native PDF document blocks (Anthropic-only) are skipped when using OpenRouter — text-only fallback
-- `AiProvider` interface has two methods: `parseEmail()` and `scoreLoad()` — both providers implement both
+- `AiProvider` interface has three methods: `parseEmail()`, `scoreLoad()`, `rankDrivers()` — both providers implement all three
 - Both `parse-email` and `score-load` Inngest functions use the same shared `aiProvider` instance from `InngestModule`
 - To test intake without email: use Inngest Dev Server (http://localhost:8288) → Functions → `parse-email` → Send test event
 
