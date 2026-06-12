@@ -32,12 +32,15 @@ function formatEventText(event: LoadEvent): string {
 }
 
 function formatTime(iso: string) {
-  return new Date(iso).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+  const d = new Date(iso);
+  // Use fixed-format to avoid server/client toLocaleString() mismatch (hydration error).
+  const month = d.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' });
+  const day = d.getUTCDate();
+  const h = d.getUTCHours();
+  const m = String(d.getUTCMinutes()).padStart(2, '0');
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const hour = h % 12 || 12;
+  return `${month} ${day}, ${hour}:${m} ${ampm}`;
 }
 
 export function EventTimeline({ events }: { events: LoadEvent[] }) {
