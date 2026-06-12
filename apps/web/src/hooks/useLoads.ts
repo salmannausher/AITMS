@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export interface LoadBroker {
   id: string;
@@ -70,6 +70,39 @@ export function useLoads(initialLoads: Load[]) {
       .finally(() => setIsStatsLoading(false));
   }, []);
 
+  // Merge fresh loads from API into current state — updates existing cards
+  // (score, status, ai_score) and adds any new loads Realtime may have missed.
+  const mergeFreshLoads = useCallback((fresh: Load[]) => {
+    setLoads((prev) => {
+      const map = new Map(prev.map((l) => [l.id, l]));
+      for (const l of fresh) map.set(l.id, l);
+      return Array.from(map.values());
+    });
+  }, []);
+
+  // Polling fallback: when PENDING or ACCEPTED loads exist (scoring/ranking in
+  // flight), refetch every 8s so score badges and status moves appear without
+  // needing a manual reload. Stops when no loads are in those states.
+  const loadsRef = useRef(loads);
+  useEffect(() => { loadsRef.current = loads; }, [loads]);
+
+  useEffect(() => {
+    const shouldPoll = () =>
+      loadsRef.current.some((l) => l.status === 'PENDING' || l.status === 'ACCEPTED');
+
+    if (!shouldPoll()) return;
+
+    const timer = setInterval(() => {
+      if (!shouldPoll()) return;
+      fetch('/api/loads')
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => { if (data) mergeFreshLoads(data as Load[]); })
+        .catch(() => { /* ignore — stale data is fine */ });
+    }, 8000);
+
+    return () => clearInterval(timer);
+  }, [loads, mergeFreshLoads]);
+
   const grouped = useMemo<GroupedLoads>(
     () => ({
       PENDING: loads.filter((l) => l.status === 'PENDING'),
@@ -84,5 +117,5 @@ export function useLoads(initialLoads: Load[]) {
     [loads],
   );
 
-  return { loads, setLoads, stats, isStatsLoading, grouped, error };
+  return { loads, setLoads, mergeFreshLoads, stats, isStatsLoading, grouped, error };
 }
