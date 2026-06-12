@@ -1,12 +1,15 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { LoadStatus } from '@prisma/client';
 import { inngest } from '../inngest/inngest.client';
 import { PrismaService } from '../prisma/prisma.service';
+import { AssignLoadDto } from './dto/assign-load.dto';
 import { CreateLoadDto } from './dto/create-load.dto';
 
 const LOAD_DETAIL_INCLUDE = {
@@ -14,7 +17,7 @@ const LOAD_DETAIL_INCLUDE = {
   assigned_driver: { select: { id: true, full_name: true } },
   assigned_truck: { select: { id: true, unit_number: true } },
   events: {
-    orderBy: { created_at: 'asc' as const },
+    orderBy: { created_at: 'desc' as const },
   },
   messages: {
     orderBy: { created_at: 'asc' as const },
@@ -22,8 +25,13 @@ const LOAD_DETAIL_INCLUDE = {
 } as const;
 
 const ALLOWED_TRANSITIONS: Partial<Record<LoadStatus, LoadStatus[]>> = {
+  PENDING: ['SCORED', 'CANCELLED'],
   SCORED: ['ACCEPTED', 'CANCELLED'],
   ACCEPTED: ['CANCELLED'],
+  ASSIGNED: ['AT_PICKUP'],
+  AT_PICKUP: ['LOADED'],
+  LOADED: ['EN_ROUTE'],
+  EN_ROUTE: ['DELIVERED'],
 };
 
 const ACTIVE_EXCLUDE: LoadStatus[] = ['CANCELLED', 'PAID', 'INVOICED'];
@@ -37,6 +45,8 @@ export interface LoadStats {
 
 @Injectable()
 export class LoadsService {
+  private readonly logger = new Logger(LoadsService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateLoadDto, companyId: string) {
@@ -68,10 +78,7 @@ export class LoadsService {
 
     // 2. Calculate RPM
     const miles = dto.estimated_miles ?? 0;
-    const rpm =
-      dto.rate && miles > 0
-        ? Number((dto.rate / miles).toFixed(3))
-        : null;
+    const rpm = dto.rate && miles > 0 ? Number((dto.rate / miles).toFixed(3)) : null;
 
     // 3. Create Load
     const load = await this.prisma.load.create({
@@ -126,33 +133,32 @@ export class LoadsService {
     const todayStart = new Date();
     todayStart.setUTCHours(0, 0, 0, 0);
 
-    const [total_active, needs_assignment, drivers_available, acceptedToday] =
-      await Promise.all([
-        this.prisma.load.count({
-          where: { company_id: companyId, status: { notIn: ACTIVE_EXCLUDE }, deleted_at: null },
-        }),
-        this.prisma.load.count({
-          where: {
-            company_id: companyId,
-            status: { in: ['SCORED', 'ACCEPTED'] },
-            assigned_driver_id: null,
-            deleted_at: null,
-          },
-        }),
-        this.prisma.driver.count({
-          where: { company_id: companyId, status: 'AVAILABLE' },
-        }),
-        this.prisma.load.findMany({
-          where: {
-            company_id: companyId,
-            status: 'ACCEPTED',
-            created_at: { gte: todayStart },
-            rate: { not: null },
-            estimated_miles: { not: null, gt: 0 },
-          },
-          select: { rate: true, estimated_miles: true },
-        }),
-      ]);
+    const [total_active, needs_assignment, drivers_available, acceptedToday] = await Promise.all([
+      this.prisma.load.count({
+        where: { company_id: companyId, status: { notIn: ACTIVE_EXCLUDE }, deleted_at: null },
+      }),
+      this.prisma.load.count({
+        where: {
+          company_id: companyId,
+          status: { in: ['SCORED', 'ACCEPTED'] },
+          assigned_driver_id: null,
+          deleted_at: null,
+        },
+      }),
+      this.prisma.driver.count({
+        where: { company_id: companyId, status: 'AVAILABLE' },
+      }),
+      this.prisma.load.findMany({
+        where: {
+          company_id: companyId,
+          status: 'ACCEPTED',
+          created_at: { gte: todayStart },
+          rate: { not: null },
+          estimated_miles: { not: null, gt: 0 },
+        },
+        select: { rate: true, estimated_miles: true },
+      }),
+    ]);
 
     let todays_avg_rpm: number | null = null;
     if (acceptedToday.length > 0) {
@@ -187,6 +193,7 @@ export class LoadsService {
     userId: string,
     newStatus: LoadStatus,
     reason?: string,
+    podUrl?: string,
   ) {
     const load = await this.prisma.load.findFirst({
       where: { id, company_id: companyId, deleted_at: null },
@@ -201,20 +208,30 @@ export class LoadsService {
     }
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.load.update({ where: { id }, data: { status: newStatus } });
+      const loadData: Record<string, unknown> = { status: newStatus };
+      if (newStatus === 'DELIVERED' && podUrl) {
+        loadData['pod_document_url'] = podUrl;
+      }
+      await tx.load.update({ where: { id }, data: loadData });
+
+      const isLegacyTransition =
+        newStatus === 'ACCEPTED' || newStatus === 'CANCELLED' || newStatus === 'SCORED';
 
       await tx.loadEvent.create({
         data: {
           load_id: id,
-          event_type: 'STATUS_CHANGE',
+          company_id: companyId,
+          event_type: isLegacyTransition ? 'STATUS_CHANGE' : newStatus,
           from_status: load.status,
           to_status: newStatus,
-          actor_type: 'user',
+          actor_type: 'USER',
           actor_id: userId,
           metadata:
             newStatus === 'CANCELLED'
               ? { reason: reason ?? 'No reason given' }
-              : {},
+              : newStatus === 'DELIVERED'
+                ? { pod_url: podUrl ?? null }
+                : {},
         },
       });
     });
@@ -222,6 +239,96 @@ export class LoadsService {
     if (newStatus === 'ACCEPTED') {
       await inngest.send({ name: 'load/accepted', data: { loadId: id, companyId } });
     }
+
+    if (newStatus === 'DELIVERED') {
+      void inngest.send({
+        name: 'load/delivered',
+        data: { loadId: id, companyId, pod_url: podUrl ?? null },
+      });
+    }
+
+    return this.findOne(id, companyId);
+  }
+
+  async assignLoad(id: string, dto: AssignLoadDto, companyId: string, userId: string) {
+    // Pre-flight: load
+    const load = await this.prisma.load.findFirst({
+      where: { id, company_id: companyId, deleted_at: null },
+    });
+    if (!load) throw new NotFoundException('Load not found');
+    if (load.status !== 'ACCEPTED') {
+      throw new ConflictException('Load must be in ACCEPTED status to assign a driver');
+    }
+
+    // Pre-flight: driver
+    const driver = await this.prisma.driver.findFirst({
+      where: { id: dto.driver_id, company_id: companyId, deleted_at: null },
+    });
+    if (!driver || driver.status !== 'AVAILABLE') {
+      throw new ConflictException('Driver is not available');
+    }
+    if (driver.hos_remaining_hours <= 0) {
+      throw new ConflictException('Driver has insufficient HOS hours');
+    }
+
+    // Pre-flight: truck
+    const truck = await this.prisma.truck.findFirst({
+      where: { id: dto.truck_id, company_id: companyId, deleted_at: null },
+    });
+    if (!truck || truck.status === 'OUT_OF_SERVICE') {
+      throw new ConflictException('Truck is not available for assignment');
+    }
+
+    // Warn if dispatcher overrode the AI-recommended truck
+    if (driver.assigned_truck_id && dto.truck_id !== driver.assigned_truck_id) {
+      this.logger.warn(
+        `Dispatcher overriding truck for driver ${dto.driver_id}: ` +
+          `expected ${driver.assigned_truck_id}, got ${dto.truck_id}`,
+      );
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.load.update({
+        where: { id },
+        data: {
+          assigned_driver_id: dto.driver_id,
+          assigned_truck_id: dto.truck_id,
+          assigned_by_user_id: userId,
+          assigned_at: new Date(),
+          status: 'ASSIGNED',
+        },
+      }),
+      this.prisma.driver.update({
+        where: { id: dto.driver_id },
+        data: { status: 'ON_LOAD' },
+      }),
+      this.prisma.truck.update({
+        where: { id: dto.truck_id },
+        data: { status: 'IN_USE' },
+      }),
+      this.prisma.loadEvent.create({
+        data: {
+          load_id: id,
+          company_id: companyId,
+          event_type: 'ASSIGNED',
+          actor_type: 'USER',
+          actor_id: userId,
+          actor_name: null,
+          metadata: { driver_id: dto.driver_id, truck_id: dto.truck_id },
+        },
+      }),
+    ]);
+
+    await inngest.send({
+      name: 'load/assigned',
+      data: {
+        loadId: id,
+        companyId,
+        driverId: dto.driver_id,
+        truckId: dto.truck_id,
+        assignedByUserId: userId,
+      },
+    });
 
     return this.findOne(id, companyId);
   }
