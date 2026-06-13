@@ -2,6 +2,11 @@
 // Shared interface — all AI providers must implement this.
 // intake.functions.ts and rate-analysis depend on this, not on any specific SDK.
 // ---------------------------------------------------------------------------
+import type {
+  AssignmentMessageContext,
+  ReplyClassificationContext,
+  ReplyClassification,
+} from '../communication/communication.types';
 
 export type ParseEmailResult = {
   toolInput: Record<string, unknown>;
@@ -46,4 +51,16 @@ export interface AiProvider {
    * Rank available drivers for a load using the rank_drivers tool.
    */
   rankDrivers(params: { system: string; userMessage: string }): Promise<RankDriversResult>;
+
+  /**
+   * Draft a WhatsApp assignment message for a driver. Returns free text.
+   */
+  draftAssignmentMessage(context: AssignmentMessageContext): Promise<string>;
+
+  /**
+   * Classify a driver's WhatsApp reply about a load assignment.
+   */
+  classifyDriverReply(context: ReplyClassificationContext): Promise<ReplyClassification>;
 }
+
+export type { AssignmentMessageContext, ReplyClassificationContext, ReplyClassification };

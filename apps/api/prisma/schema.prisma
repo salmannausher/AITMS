@@ -95,13 +95,6 @@ enum MessageChannel {
   EMAIL
 }
 
-enum MessageStatus {
-  PENDING
-  SENT
-  DELIVERED
-  READ
-  FAILED
-}
 
 enum AiTaskStatus {
   PENDING
@@ -176,6 +169,7 @@ model Driver {
   company        Company @relation(fields: [company_id], references: [id])
   truck          Truck?  @relation(fields: [assigned_truck_id], references: [id])
   assigned_loads  Load[]
+  messages        Message[]
 
   @@index([company_id, status])
   @@map("drivers")
@@ -244,9 +238,15 @@ model Load {
   needs_review       Boolean    @default(false)
   ai_score           AiScore?
   ai_score_details   Json?
-  assigned_driver_id String?
-  assigned_truck_id  String?
-  source             LoadSource @default(EMAIL)
+  assigned_driver_id   String?
+  assigned_truck_id    String?
+  assigned_by_user_id  String?
+  assigned_at          DateTime?
+  driver_confirmed_at  DateTime?
+  driver_declined_at   DateTime?
+  estimated_arrival_at DateTime?
+  pod_document_url     String?
+  source               LoadSource @default(EMAIL)
   raw_email_id       String?
   created_at         DateTime   @default(now())
   updated_at         DateTime   @updatedAt
@@ -283,25 +283,26 @@ model LoadEvent {
 }
 
 model Message {
-  id           String           @id @default(uuid())
-  company_id   String
-  load_id      String?
-  direction    MessageDirection
-  channel      MessageChannel
-  from_contact String
-  to_contact   String
-  body         String
-  media_urls   String[]         @default([])
-  ai_parsed    Json?
-  status       MessageStatus    @default(PENDING)
-  external_id  String?
-  created_at   DateTime         @default(now())
+  id          String           @id @default(uuid())
+  company_id  String
+  load_id     String?
+  driver_id   String?
+  direction   MessageDirection
+  channel     MessageChannel
+  body        String
+  external_id String?
+  wa_id       String?
+  from_number String?
+  to_number   String?
+  status      String?
+  created_at  DateTime         @default(now())
 
-  company Company @relation(fields: [company_id], references: [id])
-  load    Load?   @relation(fields: [load_id], references: [id])
+  company Company  @relation(fields: [company_id], references: [id])
+  load    Load?    @relation(fields: [load_id], references: [id])
+  driver  Driver?  @relation(fields: [driver_id], references: [id])
 
-  @@index([company_id])
-  @@index([load_id])
+  @@index([company_id, driver_id])
+  @@index([company_id, load_id])
   @@index([external_id])
   @@map("messages")
 }

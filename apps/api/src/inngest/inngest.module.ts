@@ -9,19 +9,25 @@ import { createCleanCacheFunction } from '../cache/cache.functions';
 import { createScoreLoadFunction } from '../rate-analysis/rate-analysis.functions';
 import { EiaService } from '../rate-analysis/eia.service';
 import { createRankDriversFunction } from '../dispatch/dispatch.functions';
+import {
+  createSendAssignmentFunction,
+  createParseDriverReplyFunction,
+} from '../communication/communication.functions';
 import { AnthropicProvider } from '../ai/anthropic.provider';
 import { OpenRouterProvider } from '../ai/openrouter.provider';
+import { MessagingModule } from '../messaging/messaging.module';
+import { MessagingService } from '../messaging/messaging.service';
 import { INNGEST_FUNCTIONS } from './inngest.tokens';
 
 const logger = new Logger('InngestModule');
 
 @Module({
-  imports: [CacheModule],
+  imports: [CacheModule, MessagingModule],
   controllers: [InngestController],
   providers: [
     {
       provide: INNGEST_FUNCTIONS,
-      useFactory: (prisma: PrismaService, cache: CacheService) => {
+      useFactory: (prisma: PrismaService, cache: CacheService, messaging: MessagingService) => {
         const provider = process.env['AI_PROVIDER'];
 
         const aiProvider =
@@ -48,9 +54,11 @@ const logger = new Logger('InngestModule');
           createCleanCacheFunction(prisma),
           createScoreLoadFunction(prisma, aiProvider, cache, eia),
           createRankDriversFunction(prisma, aiProvider),
+          createSendAssignmentFunction(prisma, aiProvider, messaging),
+          createParseDriverReplyFunction(prisma, aiProvider, messaging),
         ];
       },
-      inject: [PrismaService, CacheService],
+      inject: [PrismaService, CacheService, MessagingService],
     },
   ],
 })

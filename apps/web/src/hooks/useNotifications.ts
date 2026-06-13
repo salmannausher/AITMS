@@ -42,7 +42,14 @@ export function useNotifications(companyId: string) {
         toast(n.message, { duration: 5000 });
       } else if (n.type === 'DRIVER_NO_REPLY') {
         toast.error(n.message, { duration: 10000 });
+      } else if (n.type === 'DRIVER_ACCEPTED') {
+        toast.success(n.message, { duration: 6000 });
+      } else if (n.type === 'DRIVER_MESSAGE') {
+        toast(n.message, { duration: 5000 });
       }
+    }
+    if (n.persistent && n.type === 'DRIVER_DECLINED') {
+      toast.warning(n.message, { duration: 10000 });
     }
 
     return notification;
@@ -78,6 +85,25 @@ export function useNotifications(companyId: string) {
             prev.filter((n) => !(n.type === 'NEEDS_REVIEW' && n.loadId === next.id)),
           );
         }
+        // Driver accepted — driver_confirmed_at transitions from null to a timestamp
+        if (next.driver_confirmed_at && !prev.driver_confirmed_at) {
+          const driverName = next.assigned_driver?.full_name ?? 'Driver';
+          addNotification({
+            type: 'DRIVER_ACCEPTED',
+            message: `${driverName} accepted the load`,
+            loadId: next.id,
+            persistent: false,
+          });
+        }
+        // Driver declined — load reverts from ASSIGNED to ACCEPTED
+        if (prev.status === 'ASSIGNED' && next.status === 'ACCEPTED') {
+          addNotification({
+            type: 'DRIVER_DECLINED',
+            message: `Driver declined — reassign needed for ${next.origin_city} → ${next.dest_city}`,
+            loadId: next.id,
+            persistent: true,
+          });
+        }
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -103,6 +129,21 @@ export function useNotifications(companyId: string) {
           loadId: p.loadId,
           driverId: p.driverId,
           persistent: true,
+        });
+      })
+      .on('broadcast', { event: 'driver_message' }, (payload) => {
+        const p = payload.payload as {
+          driverName: string;
+          loadId: string;
+          driverId: string;
+          intent: string;
+        };
+        addNotification({
+          type: 'DRIVER_MESSAGE',
+          message: `Message from ${p.driverName}`,
+          loadId: p.loadId,
+          driverId: p.driverId,
+          persistent: false,
         });
       })
       .on('broadcast', { event: 'dispatch_ready' }, (payload) => {
