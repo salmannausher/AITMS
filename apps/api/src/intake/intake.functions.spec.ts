@@ -72,7 +72,13 @@ describe('estimateMiles (via STATE_DISTANCES lookup)', () => {
 
 describe('createParseEmailFunction', () => {
   const mockPrisma = {} as PrismaService;
-  const mockAiProvider = { parseEmail: jest.fn(), scoreLoad: jest.fn(), rankDrivers: jest.fn() };
+  const mockAiProvider = {
+    parseEmail: jest.fn(),
+    scoreLoad: jest.fn(),
+    rankDrivers: jest.fn(),
+    draftAssignmentMessage: jest.fn(),
+    classifyDriverReply: jest.fn(),
+  };
 
   it('calls inngest.createFunction with correct id and trigger', () => {
     createParseEmailFunction(mockPrisma, mockAiProvider);

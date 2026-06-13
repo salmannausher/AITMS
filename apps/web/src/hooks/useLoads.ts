@@ -42,6 +42,8 @@ export interface Load {
   ai_score_details: unknown;
   broker: LoadBroker | null;
   assigned_driver: LoadDriver | null;
+  driver_confirmed_at: string | null;
+  driver_declined_at: string | null;
 }
 
 export interface LoadStats {

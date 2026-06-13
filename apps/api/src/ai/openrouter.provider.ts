@@ -1,5 +1,13 @@
 import { Logger } from '@nestjs/common';
-import { type AiProvider, type ParseEmailResult, type RankDriversResult, type ScoreLoadResult } from './ai-provider';
+import {
+  type AiProvider,
+  type ParseEmailResult,
+  type RankDriversResult,
+  type ScoreLoadResult,
+  type AssignmentMessageContext,
+  type ReplyClassificationContext,
+  type ReplyClassification,
+} from './ai-provider';
 
 const logger = new Logger('OpenRouterProvider');
 
@@ -192,6 +200,135 @@ export class OpenRouterProvider implements AiProvider {
       modelUsed: data.model ?? this.model,
       latencyMs: Date.now() - startMs,
     };
+  }
+
+  async draftAssignmentMessage(context: AssignmentMessageContext): Promise<string> {
+    const lines = [
+      `Driver: ${context.driverName}`,
+      `Load: ${context.originCity} ${context.originState} → ${context.destCity} ${context.destState}`,
+      `Pickup: ${context.pickupDate}`,
+      `Load type: ${context.loadType}`,
+    ];
+    if (context.weightLbs != null) lines.push(`Weight: ${context.weightLbs} lbs`);
+    if (context.rateUsd != null) lines.push(`Rate: $${context.rateUsd.toLocaleString()}`);
+
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.apiKey}`,
+        'HTTP-Referer': 'https://devsphinx.dev',
+        'X-Title': 'Devsphinx AI Dispatch',
+      },
+      body: JSON.stringify({
+        model: this.model,
+        temperature: 0.3,
+        max_tokens: 512,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'Write a WhatsApp load assignment message to a truck driver. ' +
+              'Be brief (5 lines max), clear, and professional but friendly. ' +
+              'Drivers read these on phones — no jargon, no internal notes. ' +
+              'Include all provided details. Omit the rate line if no rate is given. ' +
+              "End with exactly: 'Reply YES to accept or NO to decline.'",
+          },
+          { role: 'user', content: lines.join('\n') },
+        ],
+      }),
+    });
+
+    type SimpleResponse = { choices: Array<{ message: { content: string } }>; error?: { message: string } };
+    const data = (await response.json()) as SimpleResponse;
+    if (!response.ok || data.error) {
+      throw new Error(`OpenRouter draftAssignmentMessage error: ${data.error?.message ?? response.statusText}`);
+    }
+    return data.choices[0]?.message?.content ?? '';
+  }
+
+  async classifyDriverReply(context: ReplyClassificationContext): Promise<ReplyClassification> {
+    const userMessage =
+      `Driver: ${context.driverName}\n` +
+      `Load: ${context.loadOrigin} → ${context.loadDest}\n` +
+      `Driver's reply: '${context.replyBody}'`;
+
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.apiKey}`,
+        'HTTP-Referer': 'https://devsphinx.dev',
+        'X-Title': 'Devsphinx AI Dispatch',
+      },
+      body: JSON.stringify({
+        model: this.model,
+        temperature: 0,
+        max_tokens: 256,
+        messages: [
+          {
+            role: 'system',
+            content:
+              "You are classifying a truck driver's WhatsApp reply about a load assignment. " +
+              'The driver was asked to reply YES to accept or NO to decline. ' +
+              'Classify their intent. If the message could mean multiple things or is very short, use confidence < 0.6. ' +
+              'Extract ETA or status info if present. Be conservative — prefer UNCLEAR over a wrong classification.',
+          },
+          { role: 'user', content: userMessage },
+        ],
+        tools: [
+          {
+            type: 'function',
+            function: {
+              name: 'classify_reply',
+              description: "Classify a truck driver's reply",
+              parameters: {
+                type: 'object',
+                required: ['intent', 'confidence', 'extracted_eta', 'extracted_status', 'reason'],
+                properties: {
+                  intent: {
+                    type: 'string',
+                    enum: ['ACCEPT', 'DECLINE', 'QUESTION', 'ETA_UPDATE', 'STATUS_UPDATE', 'UNCLEAR'],
+                  },
+                  confidence: { type: 'number', minimum: 0, maximum: 1 },
+                  extracted_eta: { type: ['string', 'null'] },
+                  extracted_status: { type: ['string', 'null'] },
+                  reason: { type: 'string' },
+                },
+              },
+            },
+          },
+        ],
+        tool_choice: { type: 'function', function: { name: 'classify_reply' } },
+      }),
+    });
+
+    const data = (await response.json()) as OpenRouterResponse;
+
+    if (!response.ok || data.error) {
+      // Fail-safe: return UNCLEAR so downstream never crashes on tool_choice issues
+      logger.warn(`OpenRouter classifyDriverReply error: ${data.error?.message ?? response.statusText} — returning UNCLEAR`);
+      return {
+        intent: 'UNCLEAR',
+        confidence: 0,
+        extracted_eta: null,
+        extracted_status: null,
+        reason: 'OpenRouter tool_choice not supported',
+      };
+    }
+
+    const toolCall = data.choices[0]?.message?.tool_calls?.[0];
+    if (!toolCall) {
+      return {
+        intent: 'UNCLEAR',
+        confidence: 0,
+        extracted_eta: null,
+        extracted_status: null,
+        reason: 'OpenRouter tool_choice not supported',
+      };
+    }
+
+    return JSON.parse(toolCall.function.arguments) as ReplyClassification;
   }
 
   async rankDrivers({

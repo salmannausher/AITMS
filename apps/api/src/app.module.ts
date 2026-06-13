@@ -13,6 +13,8 @@ import { BrokersModule } from './brokers/brokers.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { DriversModule } from './drivers/drivers.module';
 import { TrucksModule } from './trucks/trucks.module';
+import { MessagingModule } from './messaging/messaging.module';
+import { CommunicationModule } from './communication/communication.module';
 
 @Module({
   imports: [
@@ -29,6 +31,8 @@ import { TrucksModule } from './trucks/trucks.module';
     NotificationsModule,
     DriversModule,
     TrucksModule,
+    MessagingModule,
+    CommunicationModule,
   ],
   controllers: [AppController],
 })
