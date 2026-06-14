@@ -70,8 +70,8 @@ export function useLoads(initialLoads: Load[]) {
 
   useEffect(() => {
     fetch('/api/loads/stats')
-      .then((r) => r.json())
-      .then((data) => setStats(data as LoadStats))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data) setStats(data as LoadStats); })
       .catch(() => setError('Failed to load stats'))
       .finally(() => setIsStatsLoading(false));
   }, []);
