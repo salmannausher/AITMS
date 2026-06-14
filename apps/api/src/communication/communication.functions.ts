@@ -263,12 +263,10 @@ export function createParseDriverReplyFunction(
               prisma.loadEvent.create({
                 data: {
                   load_id: loadId,
-                  company_id: companyId,
                   event_type: 'DRIVER_ACCEPTED',
                   actor_type: 'DRIVER',
                   actor_id: driverId,
-                  actor_name: driver.full_name,
-                  metadata: { reply_body: replyBody } as unknown as Prisma.InputJsonValue,
+                  metadata: { reply_body: replyBody, actor_name: driver.full_name } as unknown as Prisma.InputJsonValue,
                 },
               }),
             ]);
@@ -294,12 +292,10 @@ export function createParseDriverReplyFunction(
               prisma.loadEvent.create({
                 data: {
                   load_id: loadId,
-                  company_id: companyId,
                   event_type: 'DRIVER_DECLINED',
                   actor_type: 'DRIVER',
                   actor_id: driverId,
-                  actor_name: driver.full_name,
-                  metadata: { reply_body: replyBody } as unknown as Prisma.InputJsonValue,
+                  metadata: { reply_body: replyBody, actor_name: driver.full_name } as unknown as Prisma.InputJsonValue,
                 },
               }),
               ...truckOp,
@@ -311,14 +307,13 @@ export function createParseDriverReplyFunction(
             await prisma.loadEvent.create({
               data: {
                 load_id: loadId,
-                company_id: companyId,
                 event_type: 'DRIVER_ETA_UPDATE',
                 actor_type: 'DRIVER',
                 actor_id: driverId,
-                actor_name: driver.full_name,
                 metadata: {
                   raw_eta: classification.extracted_eta,
                   reply_body: replyBody,
+                  actor_name: driver.full_name,
                 } as unknown as Prisma.InputJsonValue,
               },
             });
@@ -329,15 +324,14 @@ export function createParseDriverReplyFunction(
             await prisma.loadEvent.create({
               data: {
                 load_id: loadId,
-                company_id: companyId,
                 event_type: 'DRIVER_MESSAGE',
                 actor_type: 'DRIVER',
                 actor_id: driverId,
-                actor_name: driver.full_name,
                 metadata: {
                   reply_body: replyBody,
                   intent: classification.intent,
                   reason: classification.reason,
+                  actor_name: driver.full_name,
                 } as unknown as Prisma.InputJsonValue,
               },
             });
