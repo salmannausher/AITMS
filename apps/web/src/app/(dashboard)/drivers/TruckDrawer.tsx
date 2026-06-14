@@ -19,6 +19,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetDescription,
 } from '@/components/ui/sheet';
 import type { Truck } from './DriverBoardClient';
 
@@ -38,6 +39,25 @@ type Props = {
   onClose: () => void;
   onSuccess: () => void;
 };
+
+function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</Label>
+      {children}
+      {error && <p className="text-xs text-destructive mt-1">{error}</p>}
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-4">
+      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/60 border-b border-border pb-1.5">{title}</p>
+      {children}
+    </div>
+  );
+}
 
 export function TruckDrawer({ open, truck, onClose, onSuccess }: Props) {
   const isEdit = truck !== null;
@@ -94,81 +114,127 @@ export function TruckDrawer({ open, truck, onClose, onSuccess }: Props) {
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <SheetContent className="w-full sm:max-w-md overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle>{isEdit ? 'Edit Truck' : 'Add Truck'}</SheetTitle>
+      <SheetContent className="w-full sm:max-w-md flex flex-col p-0 gap-0">
+        {/* Header */}
+        <SheetHeader className="px-6 py-5 border-b border-border shrink-0">
+          <SheetTitle className="font-display text-base">
+            {isEdit ? 'Edit Truck' : 'Add Truck'}
+          </SheetTitle>
+          <SheetDescription className="text-xs text-muted-foreground">
+            {isEdit ? 'Update truck details and specifications.' : 'Add a new truck to your fleet.'}
+          </SheetDescription>
         </SheetHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-5">
-          {/* Unit number */}
-          <div className="space-y-1">
-            <Label htmlFor="unit_number">Unit Number *</Label>
-            <Input id="unit_number" placeholder="T-101" disabled={isSubmitting} {...register('unit_number')} />
-            {errors.unit_number && <p className="text-sm text-destructive">{errors.unit_number.message}</p>}
-          </div>
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-7">
+          <Section title="Identity">
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Unit Number *" error={errors.unit_number?.message}>
+                <Input
+                  placeholder="T-101"
+                  autoComplete="off"
+                  disabled={isSubmitting}
+                  className="h-9"
+                  {...register('unit_number')}
+                />
+              </Field>
 
-          {/* Type */}
-          <div className="space-y-1">
-            <Label>Truck Type *</Label>
-            <Select
-              defaultValue={truck?.type ?? 'DRY_VAN'}
-              onValueChange={(v) => setValue('type', v as CreateTruckInput['type'], { shouldValidate: true })}
+              <Field label="Truck Type *" error={errors.type?.message}>
+                <Select
+                  defaultValue={truck?.type ?? 'DRY_VAN'}
+                  onValueChange={(v) => setValue('type', v as CreateTruckInput['type'], { shouldValidate: true })}
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TRUCK_TYPE_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+          </Section>
+
+          <Section title="Specifications">
+            <div className="grid grid-cols-3 gap-3">
+              <Field label="Year" error={errors.year?.message}>
+                <Input
+                  type="number"
+                  min={1980}
+                  max={2030}
+                  placeholder="2022"
+                  disabled={isSubmitting}
+                  className="h-9"
+                  {...register('year', { valueAsNumber: true })}
+                />
+              </Field>
+              <Field label="Make">
+                <Input
+                  placeholder="Kenworth"
+                  autoComplete="off"
+                  disabled={isSubmitting}
+                  className="h-9"
+                  {...register('make')}
+                />
+              </Field>
+              <Field label="Model">
+                <Input
+                  placeholder="T680"
+                  autoComplete="off"
+                  disabled={isSubmitting}
+                  className="h-9"
+                  {...register('model')}
+                />
+              </Field>
+            </div>
+
+            <Field label="VIN">
+              <Input
+                placeholder="1XKDD49X4MJ123456"
+                autoComplete="off"
+                disabled={isSubmitting}
+                className="h-9 font-mono text-sm tracking-wider"
+                {...register('vin')}
+              />
+            </Field>
+          </Section>
+        </div>
+
+        {/* Sticky footer */}
+        <div className="shrink-0 border-t border-border bg-background px-6 py-4 space-y-3">
+          {submitError && (
+            <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2">
+              <p className="text-sm text-destructive">{submitError}</p>
+            </div>
+          )}
+          <form onSubmit={handleSubmit(onSubmit)} id="truck-form" />
+          <div className="flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={onClose}
               disabled={isSubmitting}
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TRUCK_TYPE_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.type && <p className="text-sm text-destructive">{errors.type.message}</p>}
-          </div>
-
-          {/* Year / Make / Model */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <Label htmlFor="year">Year</Label>
-              <Input
-                id="year"
-                type="number"
-                min={1980}
-                max={2030}
-                placeholder="2022"
-                disabled={isSubmitting}
-                {...register('year', { valueAsNumber: true })}
-              />
-              {errors.year && <p className="text-sm text-destructive">{errors.year.message}</p>}
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="make">Make</Label>
-              <Input id="make" placeholder="Kenworth" disabled={isSubmitting} {...register('make')} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="model">Model</Label>
-              <Input id="model" placeholder="T680" disabled={isSubmitting} {...register('model')} />
-            </div>
-          </div>
-
-          {/* VIN */}
-          <div className="space-y-1">
-            <Label htmlFor="vin">VIN</Label>
-            <Input id="vin" placeholder="1XKDD49X4MJ123456" disabled={isSubmitting} {...register('vin')} />
-          </div>
-
-          {submitError && <p className="text-sm text-destructive">{submitError}</p>}
-
-          <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" className="flex-1" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving…' : isEdit ? 'Save Changes' : 'Add Truck'}
+            <Button
+              type="submit"
+              form="truck-form"
+              className="flex-1"
+              disabled={isSubmitting}
+              onClick={handleSubmit(onSubmit)}
+            >
+              {isSubmitting
+                ? <><span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />Saving…</>
+                : isEdit ? 'Save Changes' : 'Add Truck'
+              }
             </Button>
           </div>
-        </form>
+        </div>
       </SheetContent>
     </Sheet>
   );

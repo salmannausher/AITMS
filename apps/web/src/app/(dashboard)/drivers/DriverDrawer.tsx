@@ -22,10 +22,20 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetDescription,
 } from '@/components/ui/sheet';
 import type { Driver, Truck } from './DriverBoardClient';
 
 const ENDORSEMENTS = ['H', 'N', 'T', 'X', 'P', 'S'];
+
+const ENDORSEMENT_LABELS: Record<string, string> = {
+  H: 'Hazmat',
+  N: 'Tanker',
+  T: 'Doubles/Triples',
+  X: 'Tanker + Hazmat',
+  P: 'Passenger',
+  S: 'School Bus',
+};
 
 type Props = {
   open: boolean;
@@ -34,6 +44,25 @@ type Props = {
   onClose: () => void;
   onSuccess: () => void;
 };
+
+function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</Label>
+      {children}
+      {error && <p className="text-xs text-destructive mt-1">{error}</p>}
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-4">
+      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/60 border-b border-border pb-1.5">{title}</p>
+      {children}
+    </div>
+  );
+}
 
 export function DriverDrawer({ open, driver, trucks, onClose, onSuccess }: Props) {
   const isEdit = driver !== null;
@@ -51,7 +80,6 @@ export function DriverDrawer({ open, driver, trucks, onClose, onSuccess }: Props
     resolver: zodResolver(createDriverSchema),
   });
 
-  // Reset form when drawer opens
   useEffect(() => {
     if (open) {
       setSubmitError(null);
@@ -109,170 +137,224 @@ export function DriverDrawer({ open, driver, trucks, onClose, onSuccess }: Props
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle>{isEdit ? 'Edit Driver' : 'Add Driver'}</SheetTitle>
+      <SheetContent className="w-full sm:max-w-lg flex flex-col p-0 gap-0">
+        {/* Header */}
+        <SheetHeader className="px-6 py-5 border-b border-border shrink-0">
+          <SheetTitle className="font-display text-base">
+            {isEdit ? 'Edit Driver' : 'Add Driver'}
+          </SheetTitle>
+          <SheetDescription className="text-xs text-muted-foreground">
+            {isEdit ? 'Update driver details and truck assignment.' : 'Add a new driver to your fleet roster.'}
+          </SheetDescription>
         </SheetHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-5">
-          {/* Name */}
-          <div className="space-y-1">
-            <Label htmlFor="full_name">Full Name *</Label>
-            <Input id="full_name" placeholder="John Smith" disabled={isSubmitting} {...register('full_name')} />
-            {errors.full_name && <p className="text-sm text-destructive">{errors.full_name.message}</p>}
-          </div>
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-7">
+          <Section title="Identity">
+            <Field label="Full Name *" error={errors.full_name?.message}>
+              <Input
+                placeholder="John Smith"
+                autoComplete="off"
+                disabled={isSubmitting}
+                className="h-9"
+                {...register('full_name')}
+              />
+            </Field>
 
-          {/* Phone */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label htmlFor="phone">Phone *</Label>
-              <Input id="phone" placeholder="+1-555-0100" disabled={isSubmitting} {...register('phone')} />
-              {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="whatsapp_phone">WhatsApp</Label>
-              <Input id="whatsapp_phone" placeholder="+1-555-0100" disabled={isSubmitting} {...register('whatsapp_phone')} />
-            </div>
-          </div>
-
-          {/* CDL */}
-          <div className="space-y-1">
-            <Label>CDL Class *</Label>
-            <Select
-              defaultValue={driver?.cdl_class ?? 'A'}
-              onValueChange={(v) => setValue('cdl_class', v as 'A' | 'B' | 'C', { shouldValidate: true })}
-              disabled={isSubmitting}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select class" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="A">Class A</SelectItem>
-                <SelectItem value="B">Class B</SelectItem>
-                <SelectItem value="C">Class C</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.cdl_class && <p className="text-sm text-destructive">{errors.cdl_class.message}</p>}
-          </div>
-
-          {/* Endorsements */}
-          <div className="space-y-2">
-            <Label>Endorsements</Label>
-            <div className="flex flex-wrap gap-2">
-              {ENDORSEMENTS.map((e) => (
-                <button
-                  key={e}
-                  type="button"
-                  onClick={() => toggleEndorsement(e)}
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Phone *" error={errors.phone?.message}>
+                <Input
+                  placeholder="+1 312 555 0100"
+                  autoComplete="off"
                   disabled={isSubmitting}
-                  className={`px-3 py-1 rounded-md border text-sm transition-colors ${
-                    selectedEndorsements.includes(e)
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-input bg-transparent hover:bg-accent'
-                  }`}
-                >
-                  {e}
-                </button>
-              ))}
+                  className="h-9"
+                  {...register('phone')}
+                />
+              </Field>
+              <Field label="WhatsApp">
+                <Input
+                  placeholder="Same as phone"
+                  autoComplete="off"
+                  disabled={isSubmitting}
+                  className="h-9"
+                  {...register('whatsapp_phone')}
+                />
+              </Field>
             </div>
-          </div>
+          </Section>
 
-          {/* Home location */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label htmlFor="home_city">Home City *</Label>
-              <Input id="home_city" placeholder="Chicago" disabled={isSubmitting} {...register('home_city')} />
-              {errors.home_city && <p className="text-sm text-destructive">{errors.home_city.message}</p>}
-            </div>
-            <div className="space-y-1">
-              <Label>Home State *</Label>
+          <Section title="License">
+            <Field label="CDL Class *" error={errors.cdl_class?.message}>
               <Select
-                defaultValue={driver?.home_state ?? ''}
-                onValueChange={(v) => setValue('home_state', v, { shouldValidate: true })}
+                defaultValue={driver?.cdl_class ?? 'A'}
+                onValueChange={(v) => setValue('cdl_class', v as 'A' | 'B' | 'C', { shouldValidate: true })}
                 disabled={isSubmitting}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="State" />
+                <SelectTrigger className="h-9">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {US_STATES.map((s) => (
-                    <SelectItem key={s.code} value={s.code}>
-                      {s.code} — {s.name}
+                  <SelectItem value="A">Class A — Combination vehicles</SelectItem>
+                  <SelectItem value="B">Class B — Heavy straight vehicles</SelectItem>
+                  <SelectItem value="C">Class C — Small vehicles</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Endorsements</Label>
+              <div className="flex flex-wrap gap-2">
+                {ENDORSEMENTS.map((e) => {
+                  const active = selectedEndorsements.includes(e);
+                  return (
+                    <button
+                      key={e}
+                      type="button"
+                      title={ENDORSEMENT_LABELS[e]}
+                      onClick={() => toggleEndorsement(e)}
+                      disabled={isSubmitting}
+                      className={`h-8 w-8 rounded-lg border text-sm font-semibold transition-all ${
+                        active
+                          ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                          : 'border-input bg-background text-foreground hover:border-primary/50 hover:bg-accent'
+                      }`}
+                    >
+                      {e}
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedEndorsements.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {selectedEndorsements.map((e) => ENDORSEMENT_LABELS[e]).join(' · ')}
+                </p>
+              )}
+            </div>
+          </Section>
+
+          <Section title="Location & Availability">
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Home City *" error={errors.home_city?.message}>
+                <Input
+                  placeholder="Chicago"
+                  autoComplete="off"
+                  disabled={isSubmitting}
+                  className="h-9"
+                  {...register('home_city')}
+                />
+              </Field>
+              <Field label="Home State *" error={errors.home_state?.message}>
+                <Select
+                  defaultValue={driver?.home_state ?? ''}
+                  onValueChange={(v) => setValue('home_state', v, { shouldValidate: true })}
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="State" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {US_STATES.map((s) => (
+                      <SelectItem key={s.code} value={s.code}>
+                        {s.code} — {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="HOS Remaining (hrs)" error={errors.hos_remaining_hours?.message}>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={70}
+                    step={0.5}
+                    disabled={isSubmitting}
+                    className="h-9 pr-10"
+                    {...register('hos_remaining_hours', { valueAsNumber: true })}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">/ 70</span>
+                </div>
+              </Field>
+
+              <Field label="Status">
+                <Select
+                  defaultValue={driver?.status ?? 'AVAILABLE'}
+                  onValueChange={(v) => setValue('status', v as DriverFormValues['status'], { shouldValidate: true })}
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="AVAILABLE">Available</SelectItem>
+                    <SelectItem value="ON_LOAD">On Load</SelectItem>
+                    <SelectItem value="OFF_DUTY">Off Duty</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+          </Section>
+
+          <Section title="Truck Assignment">
+            <Field label="Assigned Truck">
+              <Select
+                defaultValue={driver?.assigned_truck_id ?? '__none__'}
+                onValueChange={(v) => setValue('assigned_truck_id', v === '__none__' ? null : v)}
+                disabled={isSubmitting}
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="No truck assigned" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">
+                    <span className="text-muted-foreground">No truck assigned</span>
+                  </SelectItem>
+                  {availableTrucks.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.unit_number} · {t.type.replace('_', ' ')}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {errors.home_state && <p className="text-sm text-destructive">{errors.home_state.message}</p>}
+            </Field>
+          </Section>
+        </div>
+
+        {/* Sticky footer */}
+        <div className="shrink-0 border-t border-border bg-background px-6 py-4 space-y-3">
+          {submitError && (
+            <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2">
+              <p className="text-sm text-destructive">{submitError}</p>
             </div>
-          </div>
-
-          {/* HOS */}
-          <div className="space-y-1">
-            <Label htmlFor="hos_remaining_hours">HOS Remaining (hours, 0–70)</Label>
-            <Input
-              id="hos_remaining_hours"
-              type="number"
-              min={0}
-              max={70}
-              step={0.5}
-              disabled={isSubmitting}
-              {...register('hos_remaining_hours', { valueAsNumber: true })}
-            />
-            {errors.hos_remaining_hours && <p className="text-sm text-destructive">{errors.hos_remaining_hours.message}</p>}
-          </div>
-
-          {/* Status */}
-          <div className="space-y-1">
-            <Label>Status</Label>
-            <Select
-              defaultValue={driver?.status ?? 'AVAILABLE'}
-              onValueChange={(v) => setValue('status', v as DriverFormValues['status'], { shouldValidate: true })}
+          )}
+          <form onSubmit={handleSubmit(onSubmit)} id="driver-form" />
+          <div className="flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={onClose}
               disabled={isSubmitting}
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="AVAILABLE">Available</SelectItem>
-                <SelectItem value="ON_LOAD">On Load</SelectItem>
-                <SelectItem value="OFF_DUTY">Off Duty</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Assigned truck */}
-          <div className="space-y-1">
-            <Label>Assigned Truck</Label>
-            <Select
-              defaultValue={driver?.assigned_truck_id ?? '__none__'}
-              onValueChange={(v) => setValue('assigned_truck_id', v === '__none__' ? null : v)}
-              disabled={isSubmitting}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="None" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">None</SelectItem>
-                {availableTrucks.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.unit_number} ({t.type.replace('_', ' ')})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {submitError && <p className="text-sm text-destructive">{submitError}</p>}
-
-          <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" className="flex-1" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving…' : isEdit ? 'Save Changes' : 'Add Driver'}
+            <Button
+              type="submit"
+              form="driver-form"
+              className="flex-1"
+              disabled={isSubmitting}
+              onClick={handleSubmit(onSubmit)}
+            >
+              {isSubmitting
+                ? <><span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />Saving…</>
+                : isEdit ? 'Save Changes' : 'Add Driver'
+              }
             </Button>
           </div>
-        </form>
+        </div>
       </SheetContent>
     </Sheet>
   );
