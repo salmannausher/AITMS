@@ -12,7 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { LoadStatus } from '@prisma/client';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
 import { AuthenticatedRequest, CompanyGuard } from '../common/guards/company.guard';
 import { CreateLoadDto } from './dto/create-load.dto';
 import { LoadsService } from './loads.service';
@@ -24,6 +24,11 @@ class UpdateStatusDto {
   @IsOptional()
   @IsString()
   reason?: string;
+}
+
+class AssignDriverDto {
+  @IsUUID()
+  driver_id!: string;
 }
 
 @Controller('loads')
@@ -61,6 +66,15 @@ export class LoadsController {
       dto.status,
       dto.reason,
     );
+  }
+
+  @Patch(':id/assign')
+  assignDriver(
+    @Param('id') id: string,
+    @Body() dto: AssignDriverDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.loadsService.assignDriver(id, req.companyId, req.userId, dto.driver_id);
   }
 
   @Patch(':id/reviewed')

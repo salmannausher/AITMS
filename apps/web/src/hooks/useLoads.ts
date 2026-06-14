@@ -33,9 +33,13 @@ export interface Load {
   dest_city: string;
   dest_state: string;
   pickup_date: string;
+  delivery_date: string | null;
   rate: string | null;
   rpm: string | null;
   estimated_miles: number | null;
+  weight: number | null;
+  load_type: string | null;
+  reference_number: string | null;
   status: LoadStatusValue;
   needs_review: boolean;
   ai_score: 'GOOD' | 'MARGINAL' | 'AVOID' | null;

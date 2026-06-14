@@ -23,10 +23,16 @@ export default async function DriversPage() {
   ]);
 
   return (
-    <div className="p-6">
-      <Suspense fallback={<div className="text-muted-foreground text-sm">Loading…</div>}>
-        <DriverBoardClient initialDrivers={drivers} initialTrucks={trucks} />
-      </Suspense>
+    <div>
+      <div className="border-b border-border bg-card px-5 py-4">
+        <h1 className="text-base font-semibold text-foreground">Drivers & Fleet</h1>
+        <p className="text-xs text-muted-foreground mt-0.5">Manage your roster and trucks</p>
+      </div>
+      <div className="px-5 py-5">
+        <Suspense fallback={<div className="text-muted-foreground text-sm">Loading…</div>}>
+          <DriverBoardClient initialDrivers={drivers} initialTrucks={trucks} />
+        </Suspense>
+      </div>
     </div>
   );
 }

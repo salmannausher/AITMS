@@ -226,6 +226,46 @@ export class LoadsService {
     return this.findOne(id, companyId);
   }
 
+  async assignDriver(id: string, companyId: string, userId: string, driverId: string) {
+    const [load, driver] = await Promise.all([
+      this.prisma.load.findFirst({ where: { id, company_id: companyId, deleted_at: null } }),
+      this.prisma.driver.findFirst({ where: { id: driverId, company_id: companyId } }),
+    ]);
+    if (!load) throw new NotFoundException('Load not found');
+    if (!driver) throw new NotFoundException('Driver not found');
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.load.update({
+        where: { id },
+        data: { assigned_driver_id: driverId, assigned_truck_id: driver.assigned_truck_id, status: 'ASSIGNED' },
+      });
+      await tx.loadEvent.create({
+        data: {
+          load_id: id,
+          event_type: 'ASSIGNED',
+          from_status: load.status,
+          to_status: 'ASSIGNED',
+          actor_type: 'user',
+          actor_id: userId,
+          metadata: { driver_name: driver.full_name },
+        },
+      });
+    });
+
+    await inngest.send({
+      name: 'load/assigned',
+      data: {
+        loadId: id,
+        companyId,
+        driverId,
+        truckId: driver.assigned_truck_id ?? '',
+        assignedByUserId: userId,
+      },
+    });
+
+    return this.findOne(id, companyId);
+  }
+
   async markReviewed(id: string, companyId: string, userId: string) {
     const load = await this.prisma.load.findFirst({
       where: { id, company_id: companyId, deleted_at: null },
