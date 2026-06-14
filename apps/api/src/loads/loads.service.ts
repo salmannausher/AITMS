@@ -285,6 +285,6 @@ export class LoadsService {
       });
     });
 
-    return this.prisma.load.findUnique({ where: { id }, select: { id: true, needs_review: true } });
+    return this.prisma.load.findFirst({ where: { id, company_id: companyId }, select: { id: true, needs_review: true } });
   }
 }

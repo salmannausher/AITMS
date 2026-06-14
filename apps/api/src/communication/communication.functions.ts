@@ -42,10 +42,15 @@ export function createSendAssignmentFunction(
     async ({ event, step }) => {
       const { loadId, companyId, driverId } = event.data as LoadAssignedEventData;
 
+      if (!companyId) {
+        logger.error(`send-assignment-message: missing companyId for load ${loadId}`);
+        return { loadId, skipped: 'missing companyId' };
+      }
+
       // ── Step 1: Fetch load, driver, and company settings ──────────────────
       const context = await step.run('fetch-context', async () => {
-        const load = await prisma.load.findUnique({
-          where: { id: loadId },
+        const load = await prisma.load.findFirst({
+          where: { id: loadId, company_id: companyId },
           select: {
             id: true,
             status: true,
@@ -63,8 +68,8 @@ export function createSendAssignmentFunction(
         if (!load) return { skipped: 'load not found' as const };
         if (load.status !== 'ASSIGNED') return { skipped: 'load not in ASSIGNED status' as const };
 
-        const driver = await prisma.driver.findUnique({
-          where: { id: driverId },
+        const driver = await prisma.driver.findFirst({
+          where: { id: driverId, company_id: companyId },
           select: { id: true, full_name: true, phone: true, whatsapp_phone: true },
         });
 
@@ -140,8 +145,8 @@ export function createSendAssignmentFunction(
       await step.sleep('wait-for-reply', '30m');
 
       const freshLoad = await step.run('check-reply-received', async () => {
-        return prisma.load.findUnique({
-          where: { id: loadId },
+        return prisma.load.findFirst({
+          where: { id: loadId, company_id: companyId },
           select: { driver_confirmed_at: true, driver_declined_at: true, status: true },
         });
       });
@@ -186,15 +191,20 @@ export function createParseDriverReplyFunction(
       const { driverId, loadId, companyId, body: replyBody } =
         event.data as DriverRepliedEventData;
 
+      if (!companyId) {
+        logger.error(`parse-driver-reply: missing companyId for load ${loadId}`);
+        return { loadId, skipped: 'missing companyId' };
+      }
+
       // ── Step 1: Fetch driver + load ───────────────────────────────────────
       const context = await step.run('fetch-context', async () => {
-        const driver = await prisma.driver.findUnique({
-          where: { id: driverId },
+        const driver = await prisma.driver.findFirst({
+          where: { id: driverId, company_id: companyId },
           select: { id: true, full_name: true },
         });
 
-        const load = await prisma.load.findUnique({
-          where: { id: loadId },
+        const load = await prisma.load.findFirst({
+          where: { id: loadId, company_id: companyId },
           select: {
             id: true,
             status: true,
