@@ -9,6 +9,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { NeedsReviewBanner } from '@/components/notifications/NeedsReviewBanner';
 import { LoadCard } from './LoadCard';
 import { StatsBar } from './StatsBar';
+import { LoadBoardMobile } from './LoadBoardMobile';
 
 const COLUMN_ORDER: (keyof GroupedLoads)[] = [
   'PENDING',
@@ -149,7 +150,14 @@ export function LoadBoard({ initialLoads, companyId }: LoadBoardProps) {
   }, [grouped, filterNeedsReview]);
 
   return (
-    <div className="flex flex-col min-h-full" style={{ backgroundColor: '#faf9ff' }}>
+    <>
+      {/* Mobile layout */}
+      <div className="block lg:hidden">
+        <LoadBoardMobile initialLoads={initialLoads} companyId={companyId} />
+      </div>
+
+      {/* Desktop layout */}
+      <div className="hidden lg:flex lg:flex-col lg:min-h-full" style={{ backgroundColor: '#faf9ff' }}>
       <NeedsReviewBanner notifications={notifications} />
 
       {/* Page header */}
@@ -230,6 +238,7 @@ export function LoadBoard({ initialLoads, companyId }: LoadBoardProps) {
           );
         })}
       </div>
-    </div>
+      </div>
+    </>
   );
 }
