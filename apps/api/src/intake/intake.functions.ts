@@ -88,6 +88,11 @@ export function createParseEmailFunction(
         attachments = [],
       } = event.data as ParseEmailEventData;
 
+      if (!companyId) {
+        logger.error(`parse-email: missing companyId for message ${messageId}`);
+        return { loadId: null, skipped: true };
+      }
+
       // ── Step 1: Extract PDF text ────────────────────────────────────────
       const { pdfText, claudeDocuments } = await step.run(
         'extract-pdf',

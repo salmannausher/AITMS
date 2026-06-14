@@ -56,10 +56,15 @@ export function createScoreLoadFunction(
     async ({ event, step }) => {
       const { loadId, companyId } = event.data as LoadCreatedEventData;
 
+      if (!companyId) {
+        logger.error(`score-load: missing companyId for load ${loadId}`);
+        return { loadId, skipped: 'missing companyId' };
+      }
+
       // ── Step 1: Fetch all context ───────────────────────────────────────────
       const context = await step.run('fetch-context', async () => {
         // 1a. Load
-        const load = await prisma.load.findUnique({ where: { id: loadId } });
+        const load = await prisma.load.findFirst({ where: { id: loadId, company_id: companyId } });
 
         if (!load) return { skipped: 'load not found' as const };
         if (load.status !== 'PENDING') return { skipped: 'already processed' as const };

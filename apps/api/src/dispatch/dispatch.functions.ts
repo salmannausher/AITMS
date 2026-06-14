@@ -46,10 +46,15 @@ export function createRankDriversFunction(prisma: PrismaService, aiProvider: AiP
     async ({ event, step }) => {
       const { loadId, companyId } = event.data as LoadAcceptedEventData;
 
+      if (!companyId) {
+        logger.error(`rank-drivers: missing companyId for load ${loadId}`);
+        return { loadId, skipped: 'missing companyId' };
+      }
+
       // ── Step 1: Fetch load + available drivers ─────────────────────────────
       const context = await step.run('fetch-context', async () => {
-        const load = await prisma.load.findUnique({
-          where: { id: loadId },
+        const load = await prisma.load.findFirst({
+          where: { id: loadId, company_id: companyId },
           select: {
             id: true,
             status: true,
@@ -227,8 +232,8 @@ Return ONLY a rank_drivers tool call. Rank up to 5 drivers, best first.`;
       await step.run('save-rankings', async () => {
         // Fetch existing ai_score_details BEFORE the transaction to keep it short.
         // This avoids the 5s interactive transaction timeout on PgBouncer connections.
-        const existing = await prisma.load.findUnique({
-          where: { id: loadId },
+        const existing = await prisma.load.findFirst({
+          where: { id: loadId, company_id: companyId },
           select: { ai_score_details: true },
         });
         const existingDetails =
