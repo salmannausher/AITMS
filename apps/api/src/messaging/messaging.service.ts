@@ -55,8 +55,14 @@ export class MessagingService {
       this.logger.log(`WhatsApp sent to ${normalizedTo} — sid: ${result.sid}`);
       return { sid: result.sid, channel: 'WHATSAPP' };
     } catch (err) {
+      const errMsg = String(err);
+      // Sandbox daily limit — don't retry, just log and return a no-op result
+      if (errMsg.includes('daily messages limit') || errMsg.includes('exceeded')) {
+        this.logger.warn(`Twilio daily limit reached for ${normalizedTo} — skipping send`);
+        return { sid: 'skipped-daily-limit', channel: 'WHATSAPP' };
+      }
       this.logger.warn(
-        `WhatsApp send failed for ${normalizedTo}, falling back to SMS: ${String(err)}`,
+        `WhatsApp send failed for ${normalizedTo}, falling back to SMS: ${errMsg}`,
       );
       return this.sendSMS(normalizedTo, body, opts);
     }
@@ -70,20 +76,29 @@ export class MessagingService {
       throw new Error('TWILIO_SMS_FROM not set — cannot send SMS fallback');
     }
 
-    const result = await this.client.messages.create({ from, to: normalizedTo, body });
+    try {
+      const result = await this.client.messages.create({ from, to: normalizedTo, body });
 
-    await this.saveMessage({
-      ...opts,
-      direction: 'OUTBOUND',
-      channel: 'SMS',
-      external_id: result.sid,
-      from_number: from,
-      to_number: normalizedTo,
-      body,
-    });
+      await this.saveMessage({
+        ...opts,
+        direction: 'OUTBOUND',
+        channel: 'SMS',
+        external_id: result.sid,
+        from_number: from,
+        to_number: normalizedTo,
+        body,
+      });
 
-    this.logger.log(`SMS sent to ${normalizedTo} — sid: ${result.sid}`);
-    return { sid: result.sid, channel: 'SMS' };
+      this.logger.log(`SMS sent to ${normalizedTo} — sid: ${result.sid}`);
+      return { sid: result.sid, channel: 'SMS' };
+    } catch (err) {
+      const errMsg = String(err);
+      if (errMsg.includes('daily messages limit') || errMsg.includes('exceeded')) {
+        this.logger.warn(`Twilio daily SMS limit reached for ${normalizedTo} — skipping send`);
+        return { sid: 'skipped-daily-limit', channel: 'SMS' };
+      }
+      throw err;
+    }
   }
 
   private async saveMessage(data: {

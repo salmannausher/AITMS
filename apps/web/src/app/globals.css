@@ -4,26 +4,37 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    /* Canvas: #faf9ff */
+    --background: 250 100% 99%;
+    /* Typography: #051a3e */
+    --foreground: 218 94% 13%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 218 94% 13%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    --popover-foreground: 218 94% 13%;
+    /* Primary: #003d9b */
+    --primary: 216 100% 30%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 230 30% 96%;
+    --secondary-foreground: 218 94% 13%;
+    --muted: 230 25% 96%;
+    --muted-foreground: 220 13% 46%;
+    /* Accent: light tint of AI purple #5e4db9 */
+    --accent: 248 44% 95%;
+    --accent-foreground: 248 44% 40%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 10% 3.9%;
+    /* Border: #c3c6d6 */
+    --border: 229 22% 84%;
+    --input: 229 22% 84%;
+    --ring: 216 100% 30%;
     --radius: 0.5rem;
+    --sidebar: 222 47% 11%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-accent: 216 100% 30%;
+    /* Extra semantic tokens */
+    --ai-purple: 248 44% 51%;      /* #5e4db9 */
+    --teal: 191 100% 18%;          /* #004b59 */
   }
 
   .dark {
@@ -55,5 +66,14 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-inter), system-ui, sans-serif;
+  }
+
+  .font-display {
+    font-family: var(--font-hanken), system-ui, sans-serif;
+  }
+
+  .font-mono-data {
+    font-family: var(--font-mono), 'Courier New', monospace;
   }
 }

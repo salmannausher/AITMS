@@ -15,39 +15,94 @@ const COLUMN_ORDER: (keyof GroupedLoads)[] = [
   'SCORED',
   'ACCEPTED',
   'ASSIGNED',
-  'AT_PICKUP',
-  'LOADED',
   'EN_ROUTE',
-  'DELIVERED',
 ];
 
-const COLUMN_LABELS: Record<keyof GroupedLoads, string> = {
-  PENDING: 'Pending',
-  SCORED: 'Scored',
-  ACCEPTED: 'Accepted',
-  ASSIGNED: 'Assigned',
-  AT_PICKUP: 'At Pickup',
-  LOADED: 'Loaded',
-  EN_ROUTE: 'En Route',
-  DELIVERED: 'Delivered',
+type ColMeta = {
+  label: string;
+  headerColor: string;
+  countBg: string;
+  countColor: string;
+  colBg: string;
+  colBorder: string;
+  colGlow?: string;
+  icon?: React.ReactNode;
 };
 
-// Always show these columns even if empty
-const ALWAYS_VISIBLE = new Set<keyof GroupedLoads>(['PENDING', 'SCORED', 'ACCEPTED', 'ASSIGNED', 'EN_ROUTE']);
+const COLUMN_META: Record<keyof GroupedLoads, ColMeta> = {
+  PENDING: {
+    label: 'Pending',
+    headerColor: '#64748b',
+    countBg: '#f1f5f9',
+    countColor: '#64748b',
+    colBg: '#f8fafc',
+    colBorder: '#e2e8f0',
+  },
+  SCORED: {
+    label: 'Scored',
+    headerColor: '#5e4db9',
+    countBg: '#ede9ff',
+    countColor: '#5e4db9',
+    colBg: '#f5f3ff',
+    colBorder: '#c4b5fd',
+    colGlow: '0 0 12px rgba(159,142,255,0.3)',
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="#5e4db9">
+        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+      </svg>
+    ),
+  },
+  ACCEPTED: {
+    label: 'Accepted',
+    headerColor: '#003d9b',
+    countBg: '#dbeafe',
+    countColor: '#003d9b',
+    colBg: '#f8faff',
+    colBorder: '#bfdbfe',
+  },
+  ASSIGNED: {
+    label: 'Assigned',
+    headerColor: '#1d4ed8',
+    countBg: '#eff6ff',
+    countColor: '#1d4ed8',
+    colBg: '#f8faff',
+    colBorder: '#bfdbfe',
+  },
+  AT_PICKUP: {
+    label: 'At Pickup',
+    headerColor: '#d97706',
+    countBg: '#fef3c7',
+    countColor: '#d97706',
+    colBg: '#fffbeb',
+    colBorder: '#fde68a',
+  },
+  LOADED: {
+    label: 'Loaded',
+    headerColor: '#d97706',
+    countBg: '#fef3c7',
+    countColor: '#d97706',
+    colBg: '#fffbeb',
+    colBorder: '#fde68a',
+  },
+  EN_ROUTE: {
+    label: 'En Route',
+    headerColor: '#004b59',
+    countBg: '#ccfbf1',
+    countColor: '#004b59',
+    colBg: '#f0fdfa',
+    colBorder: '#99f6e4',
+  },
+  DELIVERED: {
+    label: 'Delivered',
+    headerColor: '#059669',
+    countBg: '#d1fae5',
+    countColor: '#059669',
+    colBg: '#f0fdf4',
+    colBorder: '#bbf7d0',
+  },
+};
 
-function ColumnSkeleton({ label }: { label: string }) {
-  return (
-    <div className="flex w-56 shrink-0 flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</span>
-        <span className="h-4 w-6 animate-pulse rounded bg-gray-200" />
-      </div>
-      {[0, 1, 2].map((i) => (
-        <div key={i} className="h-20 animate-pulse rounded-md bg-gray-200" />
-      ))}
-    </div>
-  );
-}
+const ALWAYS_VISIBLE = new Set<keyof GroupedLoads>(['PENDING', 'SCORED', 'ACCEPTED', 'ASSIGNED', 'EN_ROUTE']);
 
 interface LoadBoardProps {
   initialLoads: Load[];
@@ -63,13 +118,10 @@ export function LoadBoard({ initialLoads, companyId }: LoadBoardProps) {
   const handleLoadChange = useCallback(
     (payload: RealtimePostgresChangesPayload<Load>) => {
       if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-        // Realtime payloads lack joined relations (broker, assigned_driver).
-        // Fetch the full list so cards render with complete data.
         fetch('/api/loads')
           .then((r) => r.ok ? r.json() : null)
           .then((data) => { if (data) mergeFreshLoads(data as Load[]); })
           .catch(() => {
-            // Fallback: apply raw payload so at least status/score update.
             if (payload.eventType === 'INSERT') {
               setLoads((prev) => [...prev, payload.new]);
             } else {
@@ -87,7 +139,6 @@ export function LoadBoard({ initialLoads, companyId }: LoadBoardProps) {
 
   const { connected } = useLoadsBoardRealtime(companyId, handleLoadChange, onLoadEvent);
 
-  // When ?filter=needs_review, restrict every column to needs_review loads only
   const displayGrouped = useMemo(() => {
     if (!filterNeedsReview) return grouped;
     const filtered: typeof grouped = {} as typeof grouped;
@@ -98,61 +149,86 @@ export function LoadBoard({ initialLoads, companyId }: LoadBoardProps) {
   }, [grouped, filterNeedsReview]);
 
   return (
-    <div className="flex flex-col" style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
-      {/* Needs-review banner — clears automatically when all NEEDS_REVIEW notifications resolve */}
+    <div className="flex flex-col min-h-full" style={{ backgroundColor: '#faf9ff' }}>
       <NeedsReviewBanner notifications={notifications} />
 
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
-        <h1 className="text-base font-semibold text-gray-900">
-          Load Board
-          {filterNeedsReview && (
-            <span className="ml-2 text-xs font-normal text-amber-600">— needs review</span>
-          )}
-        </h1>
+      {/* Page header */}
+      <div className="flex items-center justify-between px-5 py-4 bg-white border-b" style={{ borderColor: '#e8eaf0' }}>
+        <div>
+          <h1 className="font-display text-lg font-bold" style={{ color: '#051a3e' }}>
+            Logistics OS
+            {filterNeedsReview && (
+              <span className="ml-2 text-sm font-normal" style={{ color: '#d97706' }}>— needs review</span>
+            )}
+          </h1>
+          <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>Load Board · Operational Center</p>
+        </div>
         <div className="flex items-center gap-2">
-          <span
-            className="h-2 w-2 rounded-full"
-            style={{ backgroundColor: connected ? '#16a34a' : '#d97706' }}
-          />
-          <span className="text-xs text-gray-500">{connected ? 'Live' : 'Reconnecting…'}</span>
+          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: connected ? '#059669' : '#d97706' }} />
+          <span className="text-xs" style={{ color: '#64748b' }}>{connected ? 'Live' : 'Reconnecting…'}</span>
         </div>
       </div>
 
-      {/* Stats bar */}
+      {/* Stats */}
       <StatsBar stats={stats} isLoading={isStatsLoading} />
 
-      {/* Columns */}
-      <div className="flex gap-4 overflow-x-auto px-4 pb-6 pt-2">
+      {/* Kanban */}
+      <div className="flex gap-4 overflow-x-auto px-5 pb-8 pt-1">
         {COLUMN_ORDER.map((key) => {
           const cards = displayGrouped[key];
-          const isHideable = !ALWAYS_VISIBLE.has(key);
-          if (isHideable && cards.length === 0) return null;
+          if (!ALWAYS_VISIBLE.has(key) && cards.length === 0) return null;
+
+          const meta = COLUMN_META[key];
 
           return (
-            <div key={key} className="flex w-56 shrink-0 flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  {COLUMN_LABELS[key]}
-                </span>
-                <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600">
+            <div key={key} className="flex w-64 shrink-0 flex-col gap-2">
+              {/* Column header */}
+              <div
+                className="flex items-center justify-between rounded-xl px-3 py-2.5"
+                style={{
+                  backgroundColor: meta.colBg,
+                  border: `1px solid ${meta.colBorder}`,
+                  boxShadow: meta.colGlow,
+                }}
+              >
+                <div className="flex items-center gap-1.5">
+                  {meta.icon}
+                  <span className="font-display text-[13px] font-bold" style={{ color: meta.headerColor }}>
+                    {meta.label}
+                  </span>
+                </div>
+                <span
+                  className="flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[11px] font-bold"
+                  style={{ backgroundColor: meta.countBg, color: meta.countColor }}
+                >
                   {cards.length}
                 </span>
               </div>
-              {isStatsLoading && cards.length === 0
-                ? [0, 1, 2].map((i) => (
-                    <div key={i} className="h-20 animate-pulse rounded-md bg-gray-200" />
+
+              {/* Card stack */}
+              <div
+                className="flex flex-col gap-2.5 rounded-xl p-2 min-h-[100px]"
+                style={{
+                  backgroundColor: meta.colBg,
+                  border: `1px solid ${meta.colBorder}`,
+                  boxShadow: meta.colGlow,
+                }}
+              >
+                {isStatsLoading && cards.length === 0 ? (
+                  [0, 1].map((i) => (
+                    <div key={i} className="h-24 animate-pulse rounded-xl" style={{ backgroundColor: '#e8eaf0' }} />
                   ))
-                : cards.map((load) => <LoadCard key={load.id} load={load} />)}
+                ) : cards.length === 0 ? (
+                  <div className="flex items-center justify-center py-6">
+                    <p className="text-xs" style={{ color: '#94a3b8' }}>No loads</p>
+                  </div>
+                ) : (
+                  cards.map((load) => <LoadCard key={load.id} load={load} />)
+                )}
+              </div>
             </div>
           );
         })}
-
-        {/* Show skeleton columns while stats are loading and no initial data */}
-        {isStatsLoading && initialLoads.length === 0 &&
-          COLUMN_ORDER.slice(0, 4).map((key) => (
-            <ColumnSkeleton key={`skel-${key}`} label={COLUMN_LABELS[key]} />
-          ))}
       </div>
     </div>
   );

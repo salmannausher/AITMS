@@ -18,7 +18,7 @@ function formatEventText(event: LoadEvent): string {
   const meta = event.metadata as Record<string, unknown>;
 
   if (event.event_type === 'STATUS_CHANGE') {
-    return `${actor} changed status: ${event.from_status ?? '?'} → ${event.to_status ?? '?'}`;
+    return `${actor} • ${event.from_status ?? '?'} → ${event.to_status ?? '?'}`;
   }
   if (event.event_type === 'ASSIGNED') {
     const driver = meta?.['driver_name'] as string | undefined;
@@ -33,7 +33,6 @@ function formatEventText(event: LoadEvent): string {
 
 function formatTime(iso: string) {
   const d = new Date(iso);
-  // Use fixed-format to avoid server/client toLocaleString() mismatch (hydration error).
   const month = d.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' });
   const day = d.getUTCDate();
   const h = d.getUTCHours();
@@ -45,17 +44,24 @@ function formatTime(iso: string) {
 
 export function EventTimeline({ events }: { events: LoadEvent[] }) {
   if (events.length === 0) {
-    return <p className="py-4 text-sm text-gray-400">No events yet.</p>;
+    return <p className="py-4 text-sm text-muted-foreground">No events yet.</p>;
   }
 
   return (
-    <ol className="space-y-3 py-2">
-      {[...events].reverse().map((event) => (
-        <li key={event.id} className="flex gap-3 text-sm">
-          <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-gray-300" />
-          <div>
-            <p className="text-gray-800">{formatEventText(event)}</p>
-            <p className="text-xs text-gray-400">{formatTime(event.created_at)}</p>
+    <ol className="py-2">
+      {[...events].reverse().map((event, i, arr) => (
+        <li key={event.id} className="relative flex gap-4">
+          {/* Connector line */}
+          <div className="flex flex-col items-center">
+            <div className="mt-1 h-3 w-3 shrink-0 rounded-full border-2 border-primary bg-card z-10" />
+            {i < arr.length - 1 && (
+              <div className="w-px flex-1 bg-border mt-1 mb-0 min-h-[20px]" />
+            )}
+          </div>
+
+          <div className="pb-4 min-w-0">
+            <p className="text-sm text-foreground leading-snug">{formatEventText(event)}</p>
+            <p className="font-mono-data text-[11px] text-muted-foreground mt-0.5">{formatTime(event.created_at)}</p>
           </div>
         </li>
       ))}
