@@ -122,7 +122,7 @@ export function LoadDetail({ load: initialLoad, currentUserId }: { load: LoadDet
       </div>
 
       {/* Body */}
-      <div className={`flex-1 p-4 lg:p-6 gap-5 ${hasSidebar ? 'flex flex-col lg:flex-row lg:items-start' : 'flex flex-col max-w-4xl'}`}>
+      <div className={`flex-1 p-4 lg:p-6 pb-24 lg:pb-6 gap-5 ${hasSidebar ? 'flex flex-col lg:flex-row lg:items-start' : 'flex flex-col max-w-4xl'}`}>
 
         {/* ── Main column ── */}
         <div className={`flex flex-col gap-5 ${hasSidebar ? 'w-full lg:flex-1 lg:min-w-0' : 'w-full'}`}>
