@@ -103,7 +103,7 @@ export function LoadDetail({ load: initialLoad, currentUserId }: { load: LoadDet
   return (
     <div className="flex flex-col min-h-full bg-slate-50">
       {/* Page header */}
-      <div className="border-b border-border bg-white px-6 py-4 shrink-0">
+      <div className="border-b border-border bg-white px-4 lg:px-6 py-4 shrink-0">
         <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
           <Link href="/dashboard" className="hover:text-primary transition-colors">Load Board</Link>
           <span>›</span>
@@ -122,15 +122,15 @@ export function LoadDetail({ load: initialLoad, currentUserId }: { load: LoadDet
       </div>
 
       {/* Body */}
-      <div className={`flex-1 p-6 gap-5 ${hasSidebar ? 'flex items-start' : 'flex flex-col max-w-4xl'}`}>
+      <div className={`flex-1 p-4 lg:p-6 gap-5 ${hasSidebar ? 'flex flex-col lg:flex-row lg:items-start' : 'flex flex-col max-w-4xl'}`}>
 
         {/* ── Main column ── */}
-        <div className={`flex flex-col gap-5 ${hasSidebar ? 'flex-1 min-w-0' : 'w-full'}`}>
+        <div className={`flex flex-col gap-5 ${hasSidebar ? 'w-full lg:flex-1 lg:min-w-0' : 'w-full'}`}>
 
           {/* Load summary */}
           <Card>
             <SectionTitle>Load Details</SectionTitle>
-            <dl className="grid grid-cols-3 gap-x-6 gap-y-4">
+            <dl className="grid grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
               <Field label="Pickup Date"    value={fmtDate(load.pickup_date)} />
               <Field label="Delivery Date"  value={fmtDate(load.delivery_date)} />
               <Field label="Load Type"      value={load.load_type} />
@@ -171,7 +171,7 @@ export function LoadDetail({ load: initialLoad, currentUserId }: { load: LoadDet
 
         {/* ── Right sidebar ── */}
         {hasSidebar && (
-          <div className="w-80 shrink-0 flex flex-col gap-4">
+          <div className="w-full lg:w-80 lg:shrink-0 flex flex-col gap-4">
             {/* Driver recommendations / dispatch panel */}
             {load.status === 'ACCEPTED' ? (
               <DispatchRecommendationsPanel
