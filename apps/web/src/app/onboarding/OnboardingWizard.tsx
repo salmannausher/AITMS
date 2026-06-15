@@ -1,7 +1,7 @@
 'use client';
 
+import { useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
 import { OnboardingStep1 } from './OnboardingStep1';
 import { OnboardingStep2 } from './OnboardingStep2';
 import { OnboardingStep3 } from './OnboardingStep3';
@@ -16,10 +16,23 @@ const STEP_LABELS = [
   'Connect Email',
 ];
 
+export type Step3Draft = {
+  full_name?: string;
+  phone?: string;
+  whatsapp_phone?: string | null;
+  cdl_class?: 'A' | 'B' | 'C';
+  home_city?: string;
+  home_state?: string;
+  unit_number?: string;
+  truck_type?: string;
+};
+
 function WizardInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const step = Math.min(Math.max(Number(searchParams.get('step') ?? '1'), 1), TOTAL_STEPS);
+  // Persists step 3 draft across back/next without re-mounting
+  const step3Draft = useRef<Step3Draft>({});
 
   function setStep(n: number) {
     router.push(`/onboarding?step=${n}`);
@@ -51,7 +64,6 @@ function WizardInner() {
                 style={{ width: `${(step / TOTAL_STEPS) * 100}%`, backgroundColor: '#003d9b' }}
               />
             </div>
-            {/* Step dots */}
             <div className="flex gap-2 mt-3">
               {STEP_LABELS.map((label, i) => (
                 <div key={label} className="flex-1 flex flex-col items-center gap-1">
@@ -68,7 +80,14 @@ function WizardInner() {
           {/* Step panels */}
           {step === 1 && <OnboardingStep1 onNext={() => setStep(2)} />}
           {step === 2 && <OnboardingStep2 onNext={() => setStep(3)} onBack={() => setStep(1)} />}
-          {step === 3 && <OnboardingStep3 onNext={() => setStep(4)} onBack={() => setStep(2)} />}
+          {step === 3 && (
+            <OnboardingStep3
+              draft={step3Draft.current}
+              onDraftChange={(d) => { step3Draft.current = d; }}
+              onNext={() => setStep(4)}
+              onBack={() => setStep(2)}
+            />
+          )}
           {step === 4 && <OnboardingStep4 onBack={() => setStep(3)} />}
         </div>
       </div>

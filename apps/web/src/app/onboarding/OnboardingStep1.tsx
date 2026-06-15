@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -40,10 +40,29 @@ function Field({ label, error, children }: { label: string; error?: string; chil
 export function OnboardingStep1({ onNext }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [defaultState, setDefaultState] = useState<string>('');
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<Step1Values>({
+  const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm<Step1Values>({
     resolver: zodResolver(step1Schema),
   });
+
+  // Pre-fill from saved company data when navigating back
+  useEffect(() => {
+    fetch('/api/companies/me')
+      .then((r) => r.json())
+      .then((d: { mc_number?: string | null; dot_number?: string | null; address?: { city?: string; state?: string } }) => {
+        const vals: Partial<Step1Values> = {};
+        if (d.mc_number) vals.mc_number = d.mc_number;
+        if (d.dot_number) vals.dot_number = d.dot_number;
+        if (d.address?.city) vals.city = d.address.city;
+        if (d.address?.state) {
+          vals.state = d.address.state;
+          setDefaultState(d.address.state);
+        }
+        if (Object.keys(vals).length > 0) reset(vals);
+      })
+      .catch(() => null);
+  }, [reset]);
 
   async function onSubmit(data: Step1Values) {
     setIsSubmitting(true);
@@ -91,7 +110,11 @@ export function OnboardingStep1({ onNext }: Props) {
             <Input placeholder="Chicago" autoComplete="off" className="h-9" {...register('city')} />
           </Field>
           <Field label="Home State *" error={errors.state?.message}>
-            <Select onValueChange={(v) => setValue('state', v, { shouldValidate: true })}>
+            <Select
+              key={defaultState}
+              defaultValue={defaultState || undefined}
+              onValueChange={(v) => setValue('state', v, { shouldValidate: true })}
+            >
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="State" />
               </SelectTrigger>
