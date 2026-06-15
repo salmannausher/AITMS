@@ -365,13 +365,26 @@ The MVP is done when ALL of the following are true:
 ---
 
 ## Current Session State
-> Last updated: June 14 2026 (end of session) — update this section at the end of every session.
+> Last updated: June 15 2026 (end of session) — update this section at the end of every session.
 
 ### Git Workflow (adopted Week 3)
 - **Never push directly to `main`** — every commit, including small fixes, test files, and docs, must go through a feature branch and PR. No exceptions.
 - Branch naming: `feat/task-X.Y-short-description`
 - PR flow: push branch → `gh pr create` → CI gate → squash merge to main
 - Set branch protection on `main` in GitHub (require CI status check) before next deploy
+
+### Session June 15 2026 — UI & Security Polish
+| Task | Status | PR |
+|---|---|---|
+| Task 8.1 — Sentry error tracking (api + web) + pino structured logging | ✅ Done | #35 |
+| Task 8.2 — Multi-tenant isolation audit (company_id guards, RLS policies, isolation tests) | ✅ Done | #36 |
+| Task 8.3 — Idempotent Apex Freight LLC demo seed (all load board columns, ai_score_details shape) | ✅ Done | #37 |
+| Task 8.4 — Redesign Add Driver + Add Truck drawers (fixed header, scrollable body, sticky footer) | ✅ Done | #38 |
+| feat — Sidebar logout button | ✅ Done | #39 |
+| feat — Sidebar user tile + dropdown menu (Settings + Log out) | ✅ Done | #40 |
+| feat — Merge task 6 branch (assign load, status progression, POD upload, event timeline) | ✅ Done | #26 |
+
+### No open PRs — main is current as of June 15 2026
 
 ### Week 7 Status
 | Task | Status |
