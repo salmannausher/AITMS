@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { AiAnalysisPanel } from '@/components/loads/AiAnalysisPanel';
@@ -13,11 +14,23 @@ import { useLoadDetailRealtime } from '@/hooks/useLoadDetailRealtime';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { LoadDetail as LoadDetailType } from '@/components/loads/types';
 
-function Field({ label, value }: { label: string; value: string | null | undefined }) {
+const STATUS_STYLES: Record<string, string> = {
+  PENDING:   'bg-muted text-muted-foreground',
+  SCORED:    'bg-blue-50 text-blue-700',
+  ACCEPTED:  'bg-primary/10 text-primary',
+  ASSIGNED:  'bg-emerald-50 text-emerald-700',
+  AT_PICKUP: 'bg-amber-50 text-amber-700',
+  LOADED:    'bg-amber-50 text-amber-700',
+  EN_ROUTE:  'bg-sky-50 text-sky-700',
+  DELIVERED: 'bg-emerald-50 text-emerald-700',
+  CANCELLED: 'bg-red-50 text-red-700',
+};
+
+function Field({ label, value, mono }: { label: string; value: string | null | undefined; mono?: boolean }) {
   return (
     <div>
-      <dt className="text-xs text-gray-400">{label}</dt>
-      <dd className="text-sm font-medium text-gray-900">{value ?? '—'}</dd>
+      <dt className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">{label}</dt>
+      <dd className={`text-sm font-medium text-foreground ${mono ? 'font-mono-data' : ''}`}>{value ?? '—'}</dd>
     </div>
   );
 }
@@ -78,14 +91,33 @@ export function LoadDetail({ load: initialLoad, currentUserId }: { load: LoadDet
     return () => clearInterval(timer);
   }, [load.status, load.ai_score_details, refetch]);
 
+  const statusStyle = STATUS_STYLES[load.status] ?? 'bg-muted text-muted-foreground';
+
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8 space-y-5" style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-gray-900">
-          {load.origin_city}, {load.origin_state} → {load.dest_city}, {load.dest_state}
-        </h1>
-        <span className="text-xs text-gray-400 font-mono">{load.status}</span>
+    <div className="flex flex-col min-h-full bg-background">
+      {/* Page header */}
+      <div className="border-b border-border bg-card px-6 py-4">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+          <Link href="/dashboard" className="hover:text-primary transition-colors">Load Board</Link>
+          <span className="mx-1">›</span>
+          <span className="text-primary">{load.reference_number ?? load.id.slice(0, 8)}</span>
+        </div>
+
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h1 className="font-display text-2xl font-bold text-foreground tracking-tight">
+              {load.origin_city}, {load.origin_state}
+              <span className="text-muted-foreground/40 mx-3">→</span>
+              {load.dest_city}, {load.dest_state}
+            </h1>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <span className={`rounded-lg px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${statusStyle}`}>
+              {load.status}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Summary grid */}

@@ -74,8 +74,8 @@ describe('WebhooksService', () => {
         data: expect.objectContaining({
           direction: 'INBOUND',
           channel: 'EMAIL',
-          from_contact: baseDto.from,
-          to_contact: baseDto.to,
+          from_number: baseDto.from,
+          to_number: baseDto.to,
         }),
       });
       expect(inngest.send).toHaveBeenCalledWith({

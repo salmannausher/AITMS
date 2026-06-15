@@ -1,13 +1,21 @@
+// For local Twilio testing: expose localhost via ngrok or similar,
+// set API_BASE_URL to the ngrok URL, and register that URL in the Twilio console.
+// Twilio Sandbox: https://console.twilio.com/us1/develop/sms/try-it-out/whatsapp-learn
+
 import {
   Body,
   Controller,
   Headers,
   HttpCode,
   Post,
+  RawBodyRequest,
+  Req,
+  Res,
   UnauthorizedException,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
+import { Request, Response } from 'express';
 import { WebhooksService } from './webhooks.service';
 import { WebhookEmailDto } from './webhook-email.dto';
 
@@ -22,9 +30,29 @@ export class WebhooksController {
     @Headers('x-webhook-secret') secret: string | undefined,
     @Body() dto: WebhookEmailDto,
   ): Promise<{ ok: boolean }> {
-    if (!secret || secret !== process.env.WEBHOOK_SECRET) {
+    if (!secret || secret !== process.env['WEBHOOK_SECRET']) {
       throw new UnauthorizedException('Invalid webhook secret');
     }
     return this.webhooksService.handleInboundEmail(dto);
+  }
+
+  @Post('twilio')
+  @HttpCode(200)
+  async handleTwilioWebhook(
+    @Req() req: RawBodyRequest<Request>,
+    @Res() res: Response,
+  ): Promise<void> {
+    if (!this.webhooksService.validateTwilioSignature(req)) {
+      res.status(403).send('Forbidden');
+      return;
+    }
+
+    await this.webhooksService.handleTwilioWebhook(
+      req.body as Record<string, string>,
+    );
+
+    // Twilio requires a TwiML response — empty <Response/> means no reply message
+    res.set('Content-Type', 'text/xml');
+    res.send('<?xml version="1.0" encoding="UTF-8"?><Response/>');
   }
 }

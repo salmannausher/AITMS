@@ -96,7 +96,7 @@ interface Props {
 
 export function EventTimeline({ events, currentUserId }: Props) {
   if (events.length === 0) {
-    return <p className="py-4 text-sm text-gray-400">No events yet.</p>;
+    return <p className="py-4 text-sm text-muted-foreground">No events yet.</p>;
   }
 
   // newest first

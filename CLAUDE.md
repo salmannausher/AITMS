@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > This file is read by Claude Code at the start of every session.
 > Keep it updated as the project evolves.
-> Last updated: June 2026 · Phase: MVP v0.1
+> Last updated: June 14 2026 · Phase: MVP v0.1
 
 ---
 
@@ -365,13 +365,45 @@ The MVP is done when ALL of the following are true:
 ---
 
 ## Current Session State
-> Last updated: June 13 2026 (end of session) — update this section at the end of every session.
+> Last updated: June 14 2026 (end of session) — update this section at the end of every session.
 
 ### Git Workflow (adopted Week 3)
 - **Never push directly to `main`** — every commit, including small fixes, test files, and docs, must go through a feature branch and PR. No exceptions.
 - Branch naming: `feat/task-X.Y-short-description`
 - PR flow: push branch → `gh pr create` → CI gate → squash merge to main
 - Set branch protection on `main` in GitHub (require CI status check) before next deploy
+
+### Week 7 Status
+| Task | Status |
+|---|---|
+| Task 7.1 — TwilioService, phone util, POST /webhooks/twilio inbound handler, Message schema restructure | ✅ Done — merged to main (PR #27) |
+| Task 7.2 — Communication Agent (send-assignment-message, parse-driver-reply), AI provider extensions, frontend notifications | ✅ Done — merged to main (PR #27) |
+| fix: `assignDriver` missing `load/assigned` Inngest event (WhatsApp never fired) | ✅ Done — merged to main (PR #28) |
+| fix: Twilio sandbox daily limit causing Inngest retry loop + duplicate messages | ✅ Done — merged to main (PR #28) |
+| fix: `parse-email` event used `body` field — function expects `textBody` | ✅ Fixed (send test events with `textBody`) |
+| fix: `send-assignment-message` skipped — load not in ASSIGNED status guard | ✅ Fixed (assign via UI or SQL first) |
+
+### Week 7 Gate — IN PROGRESS (June 14 2026)
+| Check | Result |
+|---|---|
+| `send-assignment-message` fires after dispatcher assigns driver | ✅ — fixed in PR #28 |
+| WhatsApp message received within 30s | ✅ — confirmed (hit sandbox daily limit after) |
+| Twilio 403 on inbound reply (ngrok URL mismatch) | ⏳ Fix: set `API_BASE_URL=<ngrok-url>` in `apps/api/.env` |
+| Reply YES → `driver_confirmed_at` set, DRIVER_ACCEPTED toast | ⏳ Pending — blocked by 403 |
+| Reply NO → load reverts to ACCEPTED, DRIVER_DECLINED alert | ⏳ Pending |
+| No reply 30min → DRIVER_NO_REPLY alert | ⏳ Pending |
+| Message records for all inbound + outbound | ⏳ Pending |
+
+### Local Testing Notes (Week 7 Gate)
+- **ngrok** must be running: `ngrok http 3001` — exposes local API for Twilio inbound webhooks
+- `API_BASE_URL` in `apps/api/.env` must match current ngrok URL (changes on every ngrok restart)
+- Twilio sandbox webhook: Messaging → Try it out → Send a WhatsApp message → "When a message comes in" → `https://<ngrok-url>/webhooks/twilio`
+- Twilio sandbox has **5 message/day limit** — `MessagingService` now catches this and returns a skipped result instead of throwing (no retry loop)
+- End-to-end test event for Inngest Dev Server:
+  ```json
+  { "name": "load/email.received", "data": { "messageId": "test-msg-001", "companyId": "5fd3428b-775a-4eb8-9c6d-517cf72b5b16", "fromEmail": "dispatch@echogloballogistics.com", "subject": "Rate Confirmation - New York to Chicago", "textBody": "Pickup: New York, NY on June 15 2026. Delivery: Chicago, IL. Load type: Flatbed. Weight: 42000 lbs. Rate: $2200.", "attachments": [] } }
+  ```
+- John Smith driver: `ca537a94-4d16-4475-8790-c0461649a406` · truck LOWBOY T-105 · WhatsApp `+923100170459` · eligible for FLATBED/STEP_DECK loads
 
 ### Week 6 Status
 | Task | Status |

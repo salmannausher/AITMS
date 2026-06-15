@@ -6,6 +6,7 @@ export const carrierCostSettingsSchema = z.object({
   driver_pay_per_mile: z.number().positive().max(5),
   minimum_rpm: z.number().positive().max(20),
   home_state: z.string().length(2).toUpperCase(),
+  show_rate_to_driver: z.boolean().optional(),
 });
 
 export type CarrierCostSettings = z.infer<typeof carrierCostSettingsSchema>;

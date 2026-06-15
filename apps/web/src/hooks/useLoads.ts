@@ -33,15 +33,21 @@ export interface Load {
   dest_city: string;
   dest_state: string;
   pickup_date: string;
+  delivery_date: string | null;
   rate: string | null;
   rpm: string | null;
   estimated_miles: number | null;
+  weight: number | null;
+  load_type: string | null;
+  reference_number: string | null;
   status: LoadStatusValue;
   needs_review: boolean;
   ai_score: 'GOOD' | 'MARGINAL' | 'AVOID' | null;
   ai_score_details: unknown;
   broker: LoadBroker | null;
   assigned_driver: LoadDriver | null;
+  driver_confirmed_at: string | null;
+  driver_declined_at: string | null;
 }
 
 export interface LoadStats {
@@ -64,8 +70,8 @@ export function useLoads(initialLoads: Load[]) {
 
   useEffect(() => {
     fetch('/api/loads/stats')
-      .then((r) => r.json())
-      .then((data) => setStats(data as LoadStats))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data) setStats(data as LoadStats); })
       .catch(() => setError('Failed to load stats'))
       .finally(() => setIsStatsLoading(false));
   }, []);
