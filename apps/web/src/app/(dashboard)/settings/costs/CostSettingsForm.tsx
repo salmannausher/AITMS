@@ -25,9 +25,10 @@ import {
 type Props = {
   initialValues: CarrierCostSettings | null;
   isOwner: boolean;
+  onSuccess?: () => void;
 };
 
-export function CostSettingsForm({ initialValues, isOwner }: Props) {
+export function CostSettingsForm({ initialValues, isOwner, onSuccess }: Props) {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -69,6 +70,7 @@ export function CostSettingsForm({ initialValues, isOwner }: Props) {
       if (res.ok) {
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 3000);
+        onSuccess?.();
       } else {
         const err = await res.json() as { message?: string };
         setErrorMessage(err.message ?? 'Failed to save settings.');

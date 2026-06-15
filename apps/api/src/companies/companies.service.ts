@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { type Prisma } from '@prisma/client';
@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../cache/cache.service';
 import { OnboardCompanyDto } from './dto/onboard-company.dto';
 import { UpdateCostSettingsDto } from './dto/update-cost-settings.dto';
+import { UpdateOnboardingDto } from './dto/update-onboarding.dto';
 
 @Injectable()
 export class CompaniesService {
@@ -16,7 +17,6 @@ export class CompaniesService {
     private readonly config: ConfigService,
     private readonly cache: CacheService,
   ) {
-    // Instantiate after ConfigModule has resolved env vars
     this.supabaseAdmin = createClient(
       this.config.getOrThrow<string>('SUPABASE_URL'),
       this.config.getOrThrow<string>('SUPABASE_SERVICE_KEY'),
@@ -25,7 +25,6 @@ export class CompaniesService {
   }
 
   async onboard(dto: OnboardCompanyDto) {
-    // Create Company + User in a single transaction
     const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const company = await tx.company.create({
         data: { name: dto.company_name },
@@ -33,7 +32,7 @@ export class CompaniesService {
 
       const user = await tx.user.create({
         data: {
-          id: dto.auth_user_id, // align Prisma user id with Supabase auth uid
+          id: dto.auth_user_id,
           company_id: company.id,
           email: dto.email,
           full_name: dto.full_name,
@@ -44,7 +43,6 @@ export class CompaniesService {
       return { company, user };
     });
 
-    // Stamp JWT custom claims so the frontend can read company_id + role
     const { error } = await this.supabaseAdmin.auth.admin.updateUserById(
       dto.auth_user_id,
       {
@@ -65,6 +63,49 @@ export class CompaniesService {
       company_id: result.company.id,
       role: result.user.role,
     };
+  }
+
+  async getMe(companyId: string) {
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: {
+        id: true,
+        name: true,
+        mc_number: true,
+        dot_number: true,
+        inbound_email: true,
+        onboarding_complete: true,
+      },
+    });
+    if (!company) throw new NotFoundException('Company not found');
+    return company;
+  }
+
+  async updateOnboarding(companyId: string, dto: UpdateOnboardingDto) {
+    const company = await this.prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { address: true } });
+    const existingAddress = (company.address as Record<string, unknown>) ?? {};
+
+    const addressPatch: Record<string, unknown> = { ...existingAddress };
+    if (dto.city !== undefined) addressPatch['city'] = dto.city;
+    if (dto.state !== undefined) addressPatch['state'] = dto.state;
+
+    return this.prisma.company.update({
+      where: { id: companyId },
+      data: {
+        ...(dto.mc_number !== undefined && { mc_number: dto.mc_number }),
+        ...(dto.dot_number !== undefined && { dot_number: dto.dot_number }),
+        address: addressPatch as Prisma.InputJsonValue,
+      },
+      select: { id: true, mc_number: true, dot_number: true, address: true },
+    });
+  }
+
+  async completeOnboarding(companyId: string) {
+    return this.prisma.company.update({
+      where: { id: companyId },
+      data: { onboarding_complete: true },
+      select: { id: true, onboarding_complete: true },
+    });
   }
 
   async getSettings(companyId: string) {
