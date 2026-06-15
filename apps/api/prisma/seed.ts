@@ -38,20 +38,20 @@ const ALL_IN = 2.45;
 
 async function main() {
   // ── Cleanup (idempotency) ──────────────────────────────────────────────────
-  const existing = await prisma.company.findUnique({
-    where: { inbound_email: 'demo@devsphinx.dev' },
-  });
-  if (existing) {
-    console.log('Removing existing demo company…');
-    await prisma.message.deleteMany({ where: { company_id: existing.id } });
-    await prisma.aiTask.deleteMany({ where: { company_id: existing.id } });
+  // Delete ALL companies and their associated data before reseeding.
+  console.log('Removing all existing companies and their data…');
+  const allCompanies = await prisma.company.findMany({ select: { id: true } });
+  for (const c of allCompanies) {
+    await prisma.message.deleteMany({ where: { company_id: c.id } });
+    await prisma.aiTask.deleteMany({ where: { company_id: c.id } });
     // LoadEvent has no company_id — filter through the load relation
-    await prisma.loadEvent.deleteMany({ where: { load: { company_id: existing.id } } });
-    await prisma.load.deleteMany({ where: { company_id: existing.id } });
-    await prisma.driver.deleteMany({ where: { company_id: existing.id } });
-    await prisma.truck.deleteMany({ where: { company_id: existing.id } });
-    await prisma.broker.deleteMany({ where: { company_id: existing.id } });
-    await prisma.company.delete({ where: { id: existing.id } });
+    await prisma.loadEvent.deleteMany({ where: { load: { company_id: c.id } } });
+    await prisma.load.deleteMany({ where: { company_id: c.id } });
+    await prisma.driver.deleteMany({ where: { company_id: c.id } });
+    await prisma.truck.deleteMany({ where: { company_id: c.id } });
+    await prisma.broker.deleteMany({ where: { company_id: c.id } });
+    await prisma.user.deleteMany({ where: { company_id: c.id } });
+    await prisma.company.delete({ where: { id: c.id } });
   }
 
   // ── Company ───────────────────────────────────────────────────────────────
