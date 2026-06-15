@@ -405,6 +405,61 @@ The MVP is done when ALL of the following are true:
   ```
 - John Smith driver: `ca537a94-4d16-4475-8790-c0461649a406` · truck LOWBOY T-105 · WhatsApp `+923100170459` · eligible for FLATBED/STEP_DECK loads
 
+### Week 6 Status
+| Task | Status |
+|---|---|
+| Task 6.1 — Assign Load endpoint + Dispatch Recommendations Panel | ✅ Done |
+| Task 6.2 — Status progression (AT_PICKUP→LOADED→EN_ROUTE→DELIVERED) + POD upload + EventTimeline rewrite | ✅ Done |
+| fix: "Assign This Driver" button was opening override modal instead of assigning directly | ✅ Done |
+
+### Week 6 Gate — IN PROGRESS (June 13 2026)
+| Check | Result |
+|---|---|
+| Accept load → Dispatch Recommendations Panel appears with ranked drivers | ⏳ Needs manual verify |
+| "Assign This Driver" assigns directly without opening modal | ✅ Fixed |
+| Override picker opens, shows all AVAILABLE drivers, Select assigns correctly | ⏳ Needs manual verify |
+| ASSIGNED load → "Mark At Pickup" button visible and works | ⏳ Needs manual verify |
+| EN_ROUTE load → "Mark Delivered + Collect POD" opens Sheet, upload + confirm works | ⏳ Needs manual verify |
+| POD signed URL saved on load record, "View POD" link in Timeline | ⏳ Needs manual verify |
+| Timeline shows events newest-first, correct actor labels (You / AI Agent / Dispatcher) | ⏳ Needs manual verify |
+| `load/assigned` and `load/delivered` events visible in Inngest Dev Server | ⏳ Needs manual verify |
+
+### Migrations pending (run in Supabase SQL Editor)
+- `20260612100000_add_assignment_fields` — adds `assigned_by_user_id`, `assigned_at` to loads; `company_id`, `actor_name` to load_events
+- `20260612200000_add_pod_url` — adds `pod_document_url` to loads
+- Supabase Storage bucket `pods` must be created manually (Dashboard → Storage → New bucket, public=false)
+
+### Task 6.1 — Assign Load
+
+#### API additions (`apps/api/src/loads/`)
+- `POST /loads/:id/assign` — pre-flight checks (load=ACCEPTED, driver=AVAILABLE, HOS>0, truck≠OUT_OF_SERVICE) → single `$transaction` (load→ASSIGNED, driver→ON_LOAD, truck→IN_USE, LoadEvent) → `load/assigned` Inngest event
+- `dto/assign-load.dto.ts` — `@IsUUID driver_id`, `@IsUUID truck_id`
+
+#### Shared schema
+- `assignLoadSchema` + `AssignLoadInput` added to `packages/shared/src/schemas/load.schema.ts`
+
+#### Frontend additions
+- `apps/web/src/app/api/loads/[id]/assign/route.ts` — Next.js proxy
+- `apps/web/src/components/ui/dialog.tsx` — new shadcn Dialog component (uses existing `@radix-ui/react-dialog`)
+- `apps/web/src/components/loads/DispatchRecommendationsPanel.tsx` — up to 3 ranked driver cards with direct Assign button, spinner when rankings generating, Override picker Dialog (sort by HOS or Name)
+- `apps/web/src/components/loads/types.ts` — added `assigned_by_user_id`, `assigned_at`, `pod_document_url`; fixed `truck_number` → `unit_number`
+
+#### Dispatch enrichment fix
+- `dispatch.types.ts` — added `truck_id`, `truck_unit_number`, `truck_type` to `RankedDriver`; added `truck_unit_number` to `DriverCandidate`
+- `dispatch.functions.ts` — enrichment now persists `truck_id`, `truck_unit_number`, `truck_type` into `ai_score_details.driver_rankings` so the Assign button has a truck_id to send
+
+### Task 6.2 — Status Progression + POD + Timeline
+
+#### API changes
+- `ALLOWED_TRANSITIONS` extended: `PENDING→SCORED`, `ASSIGNED→AT_PICKUP→LOADED→EN_ROUTE→DELIVERED`
+- `updateStatus` now accepts `podUrl?` param; writes `pod_document_url` on DELIVERED; creates typed LoadEvents (`event_type = newStatus` for new transitions, `STATUS_CHANGE` for legacy); fires `load/delivered` Inngest event (fire-and-forget)
+- `LoadEvent` ordering changed to `desc` in `LOAD_DETAIL_INCLUDE`
+
+#### Frontend additions
+- `apps/web/src/components/loads/StatusProgressionPanel.tsx` — renders next-action button for ASSIGNED/AT_PICKUP/LOADED/EN_ROUTE; DELIVERED opens a Sheet with file upload → Supabase Storage → signed URL → PATCH /status
+- `apps/web/src/components/loads/EventTimeline.tsx` — rewritten: actor labels (You/Dispatcher/AI Agent/Driver/System), human-readable event descriptions, colored dots, "View POD" link, newest-first sort
+- `LoadDetail.tsx` — wired `StatusProgressionPanel` and passed `currentUserId` to `EventTimeline`
+
 ### Week 5 Status
 | Task | Status |
 |---|---|

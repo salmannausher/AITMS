@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { AiAnalysisPanel } from '@/components/loads/AiAnalysisPanel';
 import { DriverRecommendations } from '@/components/loads/DriverRecommendations';
+import { DispatchRecommendationsPanel } from '@/components/loads/DispatchRecommendationsPanel';
+import { StatusProgressionPanel } from '@/components/loads/StatusProgressionPanel';
 import { ActionBar } from '@/components/loads/ActionBar';
 import { EventTimeline } from '@/components/loads/EventTimeline';
 import { MessagesTab } from '@/components/loads/MessagesTab';
@@ -48,7 +50,7 @@ function fmtDate(iso: string | null) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export function LoadDetail({ load: initialLoad }: { load: LoadDetailType }) {
+export function LoadDetail({ load: initialLoad, currentUserId }: { load: LoadDetailType; currentUserId: string }) {
   const [load, setLoad] = useState(initialLoad);
 
   const refetch = useCallback(async () => {
@@ -118,73 +120,66 @@ export function LoadDetail({ load: initialLoad }: { load: LoadDetailType }) {
         </div>
       </div>
 
-      {/* Two-column body */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-0 min-h-0">
-        {/* LEFT — main content */}
-        <div className="overflow-y-auto px-6 py-5 space-y-5 border-r border-border">
-          {/* Load overview grid */}
-          <div className="rounded-xl border border-border bg-card p-5">
-            <dl className="grid grid-cols-2 gap-x-8 gap-y-4 sm:grid-cols-3">
-              <Field label="Pickup Date"    value={fmtDate(load.pickup_date)} />
-              <Field label="Delivery Date"  value={fmtDate(load.delivery_date)} />
-              <Field label="Load Type"      value={load.load_type} />
-              <Field label="Rate"           value={fmt(load.rate)} mono />
-              <Field label="RPM"            value={fmtRpm(load.rpm)} mono />
-              <Field label="Miles"          value={load.estimated_miles?.toLocaleString() ?? null} mono />
-              <Field label="Weight"         value={load.weight ? `${load.weight.toLocaleString()} lbs` : null} />
-              <Field label="Commodity"      value={load.commodity} />
-              <Field label="Ref #"          value={load.reference_number} mono />
-            </dl>
+      {/* Summary grid */}
+      <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
+          <Field label="Pickup Date" value={fmtDate(load.pickup_date)} />
+          <Field label="Delivery Date" value={fmtDate(load.delivery_date)} />
+          <Field label="Load Type" value={load.load_type} />
+          <Field label="Rate" value={fmt(load.rate)} />
+          <Field label="RPM" value={fmtRpm(load.rpm)} />
+          <Field label="Miles" value={load.estimated_miles?.toLocaleString() ?? null} />
+          <Field label="Weight" value={load.weight ? `${load.weight.toLocaleString()} lbs` : null} />
+          <Field label="Commodity" value={load.commodity} />
+          <Field label="Ref #" value={load.reference_number} />
+          <Field label="Broker" value={load.broker?.name ?? null} />
+          <Field label="Driver" value={load.assigned_driver?.full_name ?? 'Unassigned'} />
+          <Field label="Truck" value={load.assigned_truck?.unit_number ?? null} />
+        </dl>
+      </div>
 
-            <div className="mt-4 pt-4 border-t border-border grid grid-cols-3 gap-8">
-              <Field label="Broker"  value={load.broker?.name ?? null} />
-              <Field label="Driver"  value={load.assigned_driver?.full_name ?? 'Unassigned'} />
-              <Field label="Truck"   value={load.assigned_truck?.truck_number ?? null} />
-            </div>
-          </div>
+      {/* AI Analysis */}
+      <AiAnalysisPanel details={load.ai_score_details} rate={load.rate} />
 
-          {/* AI Analysis */}
-          <AiAnalysisPanel details={load.ai_score_details} rate={load.rate} />
+      {/* Driver Recommendations / Dispatch Panel */}
+      {load.status === 'ACCEPTED' ? (
+        <DispatchRecommendationsPanel
+          load={load}
+          currentUserId={currentUserId}
+          onAssigned={setLoad}
+        />
+      ) : (
+        <DriverRecommendations details={load.ai_score_details as Record<string, unknown> | null} loadId={load.id} onAssigned={setLoad} />
+      )}
 
-          {/* Action bar */}
-          <ActionBar load={load} onStatusChange={setLoad} />
+      {/* Status progression (ASSIGNED → AT_PICKUP → LOADED → EN_ROUTE → DELIVERED) */}
+      <StatusProgressionPanel
+        load={load}
+        currentUserId={currentUserId}
+        onStatusChange={setLoad}
+      />
 
-          {/* Timeline / Messages tabs */}
-          <div className="rounded-xl border border-border bg-card p-5">
-            <Tabs defaultValue="timeline">
-              <TabsList className="mb-4">
-                <TabsTrigger value="timeline">
-                  Timeline ({load.events.length})
-                </TabsTrigger>
-                <TabsTrigger value="messages">
-                  Messages ({load.messages.length})
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="timeline">
-                <EventTimeline events={load.events} />
-              </TabsContent>
-              <TabsContent value="messages">
-                <MessagesTab messages={load.messages} />
-              </TabsContent>
-            </Tabs>
-          </div>
-        </div>
+      {/* Action bar (Accept / Reject — PENDING/SCORED only) */}
+      <ActionBar load={load} onStatusChange={setLoad} />
 
-        {/* RIGHT — driver sidebar */}
-        <div className="overflow-y-auto px-5 py-5">
-          <DriverRecommendations
-            details={load.ai_score_details as Record<string, unknown> | null}
-            loadId={load.id}
-            onAssigned={setLoad}
-          />
-          {!(load.ai_score_details as Record<string, unknown> | null)?.['driver_rankings'] && (
-            <div className="text-sm text-muted-foreground text-center py-8">
-              {load.status === 'ACCEPTED'
-                ? 'Ranking drivers… check back in a moment.'
-                : 'Accept this load to trigger driver ranking.'}
-            </div>
-          )}
-        </div>
+      {/* Timeline / Messages tabs */}
+      <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <Tabs defaultValue="timeline">
+          <TabsList>
+            <TabsTrigger value="timeline">
+              Timeline ({load.events.length})
+            </TabsTrigger>
+            <TabsTrigger value="messages">
+              Messages ({load.messages.length})
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="timeline">
+            <EventTimeline events={load.events} currentUserId={currentUserId} />
+          </TabsContent>
+          <TabsContent value="messages">
+            <MessagesTab messages={load.messages} />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

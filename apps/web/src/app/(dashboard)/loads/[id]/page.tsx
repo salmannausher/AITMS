@@ -21,14 +21,14 @@ async function fetchLoad(id: string, token: string): Promise<LoadDetailType | nu
 }
 
 export default async function LoadDetailPage({ params }: Params) {
-  await getSessionUser();
+  const user = await getSessionUser();
 
   const supabase = createSupabaseServerClient();
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session) notFound();
+  if (!session || !user) notFound();
 
   const load = await fetchLoad(params.id, session.access_token);
   if (!load) notFound();
 
-  return <LoadDetail load={load} />;
+  return <LoadDetail load={load} currentUserId={user.id} />;
 }

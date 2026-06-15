@@ -77,7 +77,7 @@ export function createRankDriversFunction(prisma: PrismaService, aiProvider: AiP
             status: 'AVAILABLE',
             deleted_at: null,
           },
-          include: { truck: { select: { type: true, status: true } } },
+          include: { truck: { select: { type: true, status: true, unit_number: true } } },
           orderBy: { full_name: 'asc' },
         });
 
@@ -92,6 +92,7 @@ export function createRankDriversFunction(prisma: PrismaService, aiProvider: AiP
           endorsements: (d.endorsements as string[] | null) ?? [],
           assigned_truck_id: d.assigned_truck_id,
           truck_type: d.truck?.type ?? null,
+          truck_unit_number: d.truck?.unit_number ?? null,
         }));
 
         if (drivers.length === 0) return { skipped: 'no available drivers' as const };
@@ -222,6 +223,9 @@ Return ONLY a rank_drivers tool call. Rank up to 5 drivers, best first.`;
           return {
             ...r,
             driver_name: d?.full_name ?? 'Unknown Driver',
+            truck_id: d?.assigned_truck_id ?? null,
+            truck_unit_number: d?.truck_unit_number ?? null,
+            truck_type: d?.truck_type ?? null,
             deadhead_miles: deadheadMiles,
             eta_hours: etaHours,
           };

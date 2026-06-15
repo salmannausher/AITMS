@@ -268,11 +268,13 @@ model Load {
 model LoadEvent {
   id          String   @id @default(uuid())
   load_id     String
+  company_id  String?
   event_type  String
   from_status String?
   to_status   String?
   actor_type  String
   actor_id    String?
+  actor_name  String?
   metadata    Json     @default("{}")
   created_at  DateTime @default(now())
 
