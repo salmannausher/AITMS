@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
 const NAV_ITEMS = [
   {
@@ -24,15 +25,6 @@ const NAV_ITEMS = [
   },
   {
     href: '/settings/costs',
-    label: 'AI Insights',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/><path d="M22 2 12 12"/><circle cx="19" cy="5" r="3"/>
-      </svg>
-    ),
-  },
-  {
-    href: '/settings/costs',
     label: 'Settings',
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -42,12 +34,24 @@ const NAV_ITEMS = [
   },
 ];
 
+const LogoutIcon = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>
+  </svg>
+);
+
 export function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
 
-  function isActive(href: string, label: string) {
+  async function handleLogout() {
+    const supabase = createSupabaseBrowserClient();
+    await supabase.auth.signOut();
+    router.push('/login');
+  }
+
+  function isActive(href: string) {
     if (href === '/dashboard') return pathname === '/dashboard';
-    if (label === 'Settings') return pathname.startsWith('/settings');
     return pathname.startsWith(href);
   }
 
@@ -60,20 +64,27 @@ export function BottomNav() {
       }}
     >
       <div className="flex items-center justify-around h-16">
-        {NAV_ITEMS.map(({ href, label, icon }) => {
-          const active = isActive(href, label);
-          return (
-            <Link
-              key={label}
-              href={href}
-              className="flex flex-col items-center gap-1 flex-1 py-2"
-              style={{ color: active ? '#003d9b' : '#94a3b8' }}
-            >
-              <span>{icon}</span>
-              <span className="text-[10px] font-semibold">{label}</span>
-            </Link>
-          );
-        })}
+        {NAV_ITEMS.map(({ href, label, icon }) => (
+          <Link
+            key={label}
+            href={href}
+            className="flex flex-col items-center gap-1 flex-1 py-2"
+            style={{ color: isActive(href) ? '#003d9b' : '#94a3b8' }}
+          >
+            <span>{icon}</span>
+            <span className="text-[10px] font-semibold">{label}</span>
+          </Link>
+        ))}
+
+        {/* Logout */}
+        <button
+          onClick={handleLogout}
+          className="flex flex-col items-center gap-1 flex-1 py-2"
+          style={{ color: '#94a3b8' }}
+        >
+          <span>{LogoutIcon}</span>
+          <span className="text-[10px] font-semibold">Logout</span>
+        </button>
       </div>
     </nav>
   );
