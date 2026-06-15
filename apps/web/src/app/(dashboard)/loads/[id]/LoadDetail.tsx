@@ -149,7 +149,7 @@ export function LoadDetail({ load: initialLoad, currentUserId }: { load: LoadDet
           onAssigned={setLoad}
         />
       ) : (
-        <DriverRecommendations details={load.ai_score_details as Record<string, unknown> | null} />
+        <DriverRecommendations details={load.ai_score_details as Record<string, unknown> | null} loadId={load.id} onAssigned={setLoad} />
       )}
 
       {/* Status progression (ASSIGNED → AT_PICKUP → LOADED → EN_ROUTE → DELIVERED) */}
@@ -181,6 +181,6 @@ export function LoadDetail({ load: initialLoad, currentUserId }: { load: LoadDet
           </TabsContent>
         </Tabs>
       </div>
-    </main>
+    </div>
   );
 }
