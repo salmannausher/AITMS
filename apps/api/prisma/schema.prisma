@@ -110,12 +110,13 @@ enum AiTaskStatus {
 model Company {
   id                String           @id @default(uuid())
   name              String
-  mc_number         String?
-  dot_number        String?
-  address           Json             @default("{}")
-  settings          Json             @default("{}")
-  subscription_tier SubscriptionTier @default(FREE)
-  inbound_email     String?          @unique
+  mc_number            String?
+  dot_number           String?
+  onboarding_complete  Boolean          @default(false)
+  address              Json             @default("{}")
+  settings             Json             @default("{}")
+  subscription_tier    SubscriptionTier @default(FREE)
+  inbound_email        String?          @unique
   created_at        DateTime         @default(now())
   updated_at        DateTime         @updatedAt
   deleted_at        DateTime?
