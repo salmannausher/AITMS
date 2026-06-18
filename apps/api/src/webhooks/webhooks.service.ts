@@ -52,6 +52,7 @@ export class WebhooksService {
         from_number: from,
         to_number: to,
         body: text ?? '',
+        status: 'RECEIVED',
       },
     });
 
@@ -134,6 +135,7 @@ export class WebhooksService {
         wa_id: WaId ?? null,
         from_number: normalizedFrom,
         to_number: To || null,
+        status: 'RECEIVED',
       },
     });
 
