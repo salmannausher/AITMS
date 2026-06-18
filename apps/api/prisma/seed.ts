@@ -10,27 +10,27 @@ const prisma = new PrismaClient();
 
 // Fixed IDs keep references stable across seed runs
 const ID = {
-  company:      'demo-company-apex-freight',
-  brokerEcho:   'demo-broker-echo-global',
-  brokerCoyote: 'demo-broker-coyote-log',
-  trk101:       'demo-truck-apx-101',
-  trk102:       'demo-truck-apx-102',
-  trk103:       'demo-truck-apx-103',
-  marcus:       'demo-driver-marcus-j',
-  rosa:         'demo-driver-rosa-m',
-  dale:         'demo-driver-dale-c',
-  tanya:        'demo-driver-tanya-w',
-  ray:          'demo-driver-ray-k',
-  load1:        'demo-load-chi-hou-001',
-  load2:        'demo-load-mem-atl-002',
-  load3:        'demo-load-stl-nas-003',
-  load4:        'demo-load-dal-chi-004',
-  load5:        'demo-load-atl-mem-005',
-  load6:        'demo-load-kci-mia-006',
-  load7:        'demo-load-chi-dal-007',
-  load8:        'demo-load-nas-clt-008',
-  load9:        'demo-load-mem-chi-009',
-  load10:       'demo-load-dal-atl-010',
+  company:      'a1b2c3d4-0001-4000-8000-000000000001',
+  brokerEcho:   'a1b2c3d4-0002-4000-8000-000000000002',
+  brokerCoyote: 'a1b2c3d4-0003-4000-8000-000000000003',
+  trk101:       'a1b2c3d4-0010-4000-8000-000000000010',
+  trk102:       'a1b2c3d4-0011-4000-8000-000000000011',
+  trk103:       'a1b2c3d4-0012-4000-8000-000000000012',
+  marcus:       'a1b2c3d4-0020-4000-8000-000000000020',
+  rosa:         'a1b2c3d4-0021-4000-8000-000000000021',
+  dale:         'a1b2c3d4-0022-4000-8000-000000000022',
+  tanya:        'a1b2c3d4-0023-4000-8000-000000000023',
+  ray:          'a1b2c3d4-0024-4000-8000-000000000024',
+  load1:        'a1b2c3d4-0030-4000-8000-000000000030',
+  load2:        'a1b2c3d4-0031-4000-8000-000000000031',
+  load3:        'a1b2c3d4-0032-4000-8000-000000000032',
+  load4:        'a1b2c3d4-0033-4000-8000-000000000033',
+  load5:        'a1b2c3d4-0034-4000-8000-000000000034',
+  load6:        'a1b2c3d4-0035-4000-8000-000000000035',
+  load7:        'a1b2c3d4-0036-4000-8000-000000000036',
+  load8:        'a1b2c3d4-0037-4000-8000-000000000037',
+  load9:        'a1b2c3d4-0038-4000-8000-000000000038',
+  load10:       'a1b2c3d4-0039-4000-8000-000000000039',
 } as const;
 
 // all-in cost: 1.45 + 0.58 + 0.42 = 2.45
@@ -44,9 +44,10 @@ async function main() {
   for (const c of allCompanies) {
     await prisma.message.deleteMany({ where: { company_id: c.id } });
     await prisma.aiTask.deleteMany({ where: { company_id: c.id } });
-    // LoadEvent has no company_id — filter through the load relation
     await prisma.loadEvent.deleteMany({ where: { load: { company_id: c.id } } });
     await prisma.load.deleteMany({ where: { company_id: c.id } });
+    // Null out driver→truck FK before deleting trucks
+    await prisma.driver.updateMany({ where: { company_id: c.id }, data: { assigned_truck_id: null } });
     await prisma.driver.deleteMany({ where: { company_id: c.id } });
     await prisma.truck.deleteMany({ where: { company_id: c.id } });
     await prisma.broker.deleteMany({ where: { company_id: c.id } });
