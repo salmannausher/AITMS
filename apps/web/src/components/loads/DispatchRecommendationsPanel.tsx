@@ -311,10 +311,6 @@ export function DispatchRecommendationsPanel({ load, onAssigned }: Props) {
       if (isAssigning) return;
       setIsAssigning(true);
       setAssigningDriverId(driverId);
-      const snapshot = load;
-
-      // Optimistic update
-      onAssigned({ ...load, status: 'ASSIGNED', assigned_driver_id: driverId } as LoadDetail);
 
       try {
         const res = await fetch(`/api/loads/${load.id}/assign`, {
@@ -324,14 +320,12 @@ export function DispatchRecommendationsPanel({ load, onAssigned }: Props) {
         });
         const data = (await res.json()) as LoadDetail & { message?: string };
         if (!res.ok) {
-          onAssigned(snapshot);
           showToast(`Assignment failed: ${data.message ?? res.statusText}`);
         } else {
           onAssigned(data);
           setOverrideOpen(false);
         }
       } catch (err) {
-        onAssigned(snapshot);
         showToast(`Assignment failed: ${err instanceof Error ? err.message : 'Network error'}`);
       } finally {
         setIsAssigning(false);
