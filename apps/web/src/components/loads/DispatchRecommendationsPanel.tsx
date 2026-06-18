@@ -372,7 +372,7 @@ export function DispatchRecommendationsPanel({ load, onAssigned }: Props) {
           <p className="text-sm text-gray-400">Driver recommendations are being generated…</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="flex flex-col gap-3">
           {recs.map((rec) => (
             <RecommendationCard
               key={rec.driver_id}
