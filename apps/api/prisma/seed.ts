@@ -8,29 +8,29 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Fixed IDs keep references stable across seed runs
+// Fixed UUIDs — stable across seed runs, generated once
 const ID = {
-  company:      'a1b2c3d4-0001-4000-8000-000000000001',
-  brokerEcho:   'a1b2c3d4-0002-4000-8000-000000000002',
-  brokerCoyote: 'a1b2c3d4-0003-4000-8000-000000000003',
-  trk101:       'a1b2c3d4-0010-4000-8000-000000000010',
-  trk102:       'a1b2c3d4-0011-4000-8000-000000000011',
-  trk103:       'a1b2c3d4-0012-4000-8000-000000000012',
-  marcus:       'a1b2c3d4-0020-4000-8000-000000000020',
-  rosa:         'a1b2c3d4-0021-4000-8000-000000000021',
-  dale:         'a1b2c3d4-0022-4000-8000-000000000022',
-  tanya:        'a1b2c3d4-0023-4000-8000-000000000023',
-  ray:          'a1b2c3d4-0024-4000-8000-000000000024',
-  load1:        'a1b2c3d4-0030-4000-8000-000000000030',
-  load2:        'a1b2c3d4-0031-4000-8000-000000000031',
-  load3:        'a1b2c3d4-0032-4000-8000-000000000032',
-  load4:        'a1b2c3d4-0033-4000-8000-000000000033',
-  load5:        'a1b2c3d4-0034-4000-8000-000000000034',
-  load6:        'a1b2c3d4-0035-4000-8000-000000000035',
-  load7:        'a1b2c3d4-0036-4000-8000-000000000036',
-  load8:        'a1b2c3d4-0037-4000-8000-000000000037',
-  load9:        'a1b2c3d4-0038-4000-8000-000000000038',
-  load10:       'a1b2c3d4-0039-4000-8000-000000000039',
+  company:      'c7f3a2b1-4e8d-4a1f-9c6e-2d5f8b3a7e9c',
+  brokerEcho:   'b2e4f1a8-7c3d-4b2e-8f5a-1c9d6e2b4f7a',
+  brokerCoyote: 'd5a1c8e3-2f6b-4d3a-7e9c-4b8f1a5d2e6b',
+  trk101:       'e9b2d4f7-1a5c-4e8b-3d6f-7a2c5e9b1d4f',
+  trk102:       'f1c4e7a2-8d3b-4f1c-5e8a-2b6d9f3c7a1e',
+  trk103:       'a3d6f9c1-4b8e-4a3d-2f5c-8e1b4d7f2a6c',
+  marcus:       '1b4e7a2d-5c9f-4b1e-8a3d-6f2c5e8b1a4d',
+  rosa:         '2c5f8b3e-6d1a-4c2f-9b4e-7a3d6f9c2b5e',
+  dale:         '3d6a9c4f-7e2b-4d3a-1c5f-8b4e7a1d3c6f',
+  tanya:        '4e7b1d5a-8f3c-4e4b-2d6a-9c5f8b2e4d7a',
+  ray:          '5f8c2e6b-9a4d-4f5c-3e7b-1d6a9c3f5e8b',
+  load1:        '6a9d3f7c-1b5e-4a6d-4f8c-2e7b1d4a6f9c',
+  load2:        '7b1e4a8d-2c6f-4b7e-5a9d-3f8c2e5b7a1d',
+  load3:        '8c2f5b9e-3d7a-4c8f-6b1e-4a9d3f6c8b2e',
+  load4:        '9d3a6c1f-4e8b-4d9a-7c2f-5b1e4a7d9c3f',
+  load5:        'ae4b7d2a-5f9c-4e1b-8d3a-6c2f5b8e1a4d',
+  load6:        'bf5c8e3b-6a1d-4f2c-9e4b-7d3a6c9f2b5e',
+  load7:        'c16d9f4c-7b2e-4a3d-1f5c-8e4b7d1a3c6f',
+  load8:        'd27e1a5d-8c3f-4b4e-2a6d-9f5c8e2b4d7a',
+  load9:        'e38f2b6e-9d4a-4c5f-3b7e-1a6d9f3c5e8b',
+  load10:       'f49a3c7f-1e5b-4d6a-4c8f-2b7e1a4d6f9c',
 } as const;
 
 // all-in cost: 1.45 + 0.58 + 0.42 = 2.45
