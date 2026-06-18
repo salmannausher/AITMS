@@ -313,10 +313,24 @@ export function DispatchRecommendationsPanel({ load, onAssigned }: Props) {
       setAssigningDriverId(driverId);
 
       try {
+        // If truck_id wasn't saved in AI rankings, look it up from the driver record
+        let resolvedTruckId = truckId;
+        if (!resolvedTruckId) {
+          const driverRes = await fetch(`/api/drivers/${driverId}`);
+          if (driverRes.ok) {
+            const d = await driverRes.json() as { assigned_truck_id?: string | null; truck?: { id: string } | null };
+            resolvedTruckId = d.truck?.id ?? d.assigned_truck_id ?? '';
+          }
+          if (!resolvedTruckId) {
+            showToast('No truck assigned to this driver. Use "Pick a different driver" to select one with a truck.');
+            return;
+          }
+        }
+
         const res = await fetch(`/api/loads/${load.id}/assign`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ driver_id: driverId, truck_id: truckId }),
+          body: JSON.stringify({ driver_id: driverId, truck_id: resolvedTruckId }),
         });
         const data = (await res.json()) as LoadDetail & { message?: string };
         if (!res.ok) {
