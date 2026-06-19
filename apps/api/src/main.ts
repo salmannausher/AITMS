@@ -31,7 +31,20 @@ async function bootstrap() {
     }),
   );
 
-  app.enableCors();
+  app.enableCors({
+    origin: process.env['CORS_ORIGINS']?.split(',') ?? ['http://localhost:3000'],
+    credentials: true,
+  });
+
+  if (
+    process.env['NODE_ENV'] === 'production' &&
+    process.env['INNGEST_DEV'] !== '1' &&
+    !process.env['INNGEST_SIGNING_KEY']
+  ) {
+    throw new Error(
+      'INNGEST_SIGNING_KEY must be set in production — refusing to start with an unsigned /api/inngest endpoint',
+    );
+  }
 
   const port = process.env['PORT'] ?? 3001;
   await app.listen(port);

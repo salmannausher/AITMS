@@ -93,6 +93,25 @@ export function createParseEmailFunction(
         return { loadId: null, skipped: true };
       }
 
+      // ── Tenant verification ─────────────────────────────────────────────
+      // Never trust the event's companyId blindly. The Message record (written
+      // by the webhook) is the source of truth for which tenant this email
+      // belongs to. If a forged event names a real message but a different
+      // company, abort before creating any cross-tenant records.
+      const sourceMessage = await step.run('verify-tenant', async () =>
+        prisma.message.findUnique({
+          where: { id: messageId },
+          select: { company_id: true },
+        }),
+      );
+      if (sourceMessage && sourceMessage.company_id !== companyId) {
+        logger.error(
+          `parse-email: companyId mismatch for message ${messageId} ` +
+            `(event=${companyId}, actual=${sourceMessage.company_id}) — aborting`,
+        );
+        return { loadId: null, skipped: 'tenant mismatch' };
+      }
+
       // ── Step 1: Extract PDF text ────────────────────────────────────────
       const { pdfText, claudeDocuments } = await step.run(
         'extract-pdf',
