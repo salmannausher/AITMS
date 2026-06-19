@@ -15,9 +15,21 @@ import {
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
+import { timingSafeEqual } from 'crypto';
 import { Request, Response } from 'express';
 import { WebhooksService } from './webhooks.service';
 import { WebhookEmailDto } from './webhook-email.dto';
+
+function safeSecretMatch(
+  provided: string | undefined,
+  expected: string | undefined,
+): boolean {
+  if (!provided || !expected) return false;
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
 
 @Controller('webhooks')
 export class WebhooksController {
@@ -30,7 +42,7 @@ export class WebhooksController {
     @Headers('x-webhook-secret') secret: string | undefined,
     @Body() dto: WebhookEmailDto,
   ): Promise<{ ok: boolean }> {
-    if (!secret || secret !== process.env['WEBHOOK_SECRET']) {
+    if (!safeSecretMatch(secret, process.env['WEBHOOK_SECRET'])) {
       throw new UnauthorizedException('Invalid webhook secret');
     }
     return this.webhooksService.handleInboundEmail(dto);

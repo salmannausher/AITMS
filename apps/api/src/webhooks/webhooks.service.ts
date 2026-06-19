@@ -83,10 +83,10 @@ export class WebhooksService {
     const authToken = process.env['TWILIO_AUTH_TOKEN'];
     const baseUrl = process.env['API_BASE_URL'];
     if (!authToken || !baseUrl) {
-      this.logger.warn(
-        'TWILIO_AUTH_TOKEN or API_BASE_URL not set — skipping Twilio signature validation',
+      this.logger.error(
+        'TWILIO_AUTH_TOKEN or API_BASE_URL not set — rejecting Twilio request (fail closed)',
       );
-      return true; // fail-open in dev; tighten in production
+      return false;
     }
 
     const url = `${baseUrl}/webhooks/twilio`;
