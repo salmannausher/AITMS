@@ -30,6 +30,13 @@ export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isPublicRoute = pathname.startsWith('/login') || pathname.startsWith('/signup');
   const isOnboardingRoute = pathname.startsWith('/onboarding');
+  const isApiRoute = pathname.startsWith('/api');
+
+  // API routes must never be redirected — their handlers own auth and return JSON.
+  // A redirect here would send an HTML page back to a fetch() expecting JSON.
+  if (isApiRoute) {
+    return supabaseResponse;
+  }
 
   if (!user && !isPublicRoute) {
     const loginUrl = request.nextUrl.clone();
