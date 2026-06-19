@@ -332,9 +332,10 @@ export function DispatchRecommendationsPanel({ load, onAssigned }: Props) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ driver_id: driverId, truck_id: resolvedTruckId }),
         });
-        const data = (await res.json()) as LoadDetail & { message?: string };
+        const data = (await res.json()) as LoadDetail & { message?: string | string[] };
         if (!res.ok) {
-          showToast(`Assignment failed: ${data.message ?? res.statusText}`);
+          const msg = Array.isArray(data.message) ? data.message.join(', ') : (data.message ?? res.statusText);
+          showToast(`Assignment failed: ${msg}`);
         } else {
           onAssigned(data);
           setOverrideOpen(false);
