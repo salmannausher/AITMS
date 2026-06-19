@@ -45,3 +45,6 @@ prisma/generated
 Thumbs.db
 .vercel
 .env*
+
+# Codex (local agent tooling)
+.codex/
