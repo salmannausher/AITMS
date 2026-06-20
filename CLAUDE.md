@@ -695,12 +695,12 @@ The MVP is done when ALL of the following are true:
 - Worker deployed at: `https://aitms-email-worker.devsphinx.workers.dev`
 - Cloudflare subdomain: `devsphinx.workers.dev` (registered)
 - NestJS webhook: `POST /webhooks/email` — verifies `X-Webhook-Secret`, creates Message + Broker records, fires `load/email.received` Inngest event
-- Company routing: `inbound_email` set to `info@devsphinx.dev` on Acme Trucking LLC (company id: `29c19f12-0d3b-4c30-8c4a-1f9c2d02eb60`)
+- Company routing: `inbound_email` is auto-provisioned per company on onboarding as `<name-slug>-<6hex>@devshinx.dev` (overridable via `INBOUND_EMAIL_DOMAIN`) — `CompaniesService.onboard()`. The Cloudflare worker is a catch-all for the domain, so this is a pure DB write (no per-company DNS). Existing companies were backfilled via SQL.
 - Migration applied: `20260604000000_add_company_inbound_email` — adds `inbound_email String? @unique` to Company
 - Resend: `MailService` in `apps/api/src/mail/` — lazy-initializes, only for auth/alert/invoice emails
 - New env vars: `WEBHOOK_SECRET` (must match Cloudflare Worker secret), `RESEND_API_KEY`
-- Domain: `devsphinx.dev` purchased on Cloudflare Registrar — MX records configured, DNS propagation pending
-- Email routing rule: `info@devsphinx.dev` → Worker `aitms-email-worker` (Active in Cloudflare dashboard)
+- Domain: `devshinx.dev` purchased on Cloudflare Registrar — MX records configured
+- Email routing rule: catch-all on `devshinx.dev` → Worker `aitms-email-worker` (required — every company gets its own `@devshinx.dev` address, so a single `info@` rule is not enough)
 - Status: ⏳ DNS propagating — `NXDOMAIN` still returning as of June 8 2026; email routing will work automatically once propagation completes (no code changes needed)
 
 ### Intake Agent Setup
