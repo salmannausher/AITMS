@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
@@ -24,10 +25,28 @@ export class CompaniesService {
     );
   }
 
+  /**
+   * Build the carrier's dedicated dispatch inbox address. The Cloudflare Email
+   * Worker is a catch-all for the whole domain, so any new local-part routes to
+   * POST /webhooks/email — provisioning is just this DB write, no DNS setup.
+   * Format: <name-slug>-<short-suffix>@<domain>, e.g. acme-trucking-k3f9@devshinx.dev
+   */
+  private buildInboundEmail(companyName: string): string {
+    const domain = this.config.get<string>('INBOUND_EMAIL_DOMAIN') ?? 'devshinx.dev';
+    const slug =
+      companyName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 24) || 'carrier';
+    const suffix = randomBytes(3).toString('hex'); // 6 hex chars — collision-safe vs @unique
+    return `${slug}-${suffix}@${domain}`;
+  }
+
   async onboard(dto: OnboardCompanyDto) {
     const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const company = await tx.company.create({
-        data: { name: dto.company_name },
+        data: { name: dto.company_name, inbound_email: this.buildInboundEmail(dto.company_name) },
       });
 
       const user = await tx.user.create({

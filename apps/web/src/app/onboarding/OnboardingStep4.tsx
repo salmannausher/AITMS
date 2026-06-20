@@ -52,8 +52,9 @@ export function OnboardingStep4({ onBack }: Props) {
       <div className="mb-6">
         <h1 className="text-lg font-bold text-slate-900">Your dedicated dispatch inbox</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Forward broker emails here, or add it as a CC to your broker communications.
-          Every rate confirmation sent here will be automatically parsed and scored.
+          Set this as an auto-forward rule in your existing email — your brokers keep emailing
+          you exactly as they do today, nothing changes on their end. Every rate confirmation
+          that lands here is automatically parsed and scored.
         </p>
       </div>
 
