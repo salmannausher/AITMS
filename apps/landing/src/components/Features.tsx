@@ -1,9 +1,9 @@
 import Reveal from './Reveal';
+import { IconScore, IconTruck, IconConfirm, IconBoard, IconParse, IconAnalytics } from './icons';
 
 const features = [
   {
-    icon: '⚡',
-    iconBg: 'linear-gradient(135deg, #92400e, #f97316)',
+    Icon: IconScore,
     title: 'AI Load Scoring',
     description: (
       <>
@@ -17,36 +17,31 @@ const features = [
     accentColor: '#F97316',
   },
   {
-    icon: '🚛',
-    iconBg: 'linear-gradient(135deg, #065f46, #10b981)',
+    Icon: IconTruck,
     title: 'Smart Driver Ranking',
     description: 'AI ranks available drivers by HOS hours, equipment type, and deadhead miles. Top 3 with reasons. Override anytime.',
     accentColor: '#10B981',
   },
   {
-    icon: '💬',
-    iconBg: 'linear-gradient(135deg, #064e3b, #34d399)',
+    Icon: IconConfirm,
     title: 'WhatsApp Dispatch',
     description: 'One click sends a WhatsApp with full load details. Driver replies YES or NO. Load board updates automatically. No calls.',
     accentColor: '#34D399',
   },
   {
-    icon: '📊',
-    iconBg: 'linear-gradient(135deg, #1e3a8a, #3b82f6)',
+    Icon: IconBoard,
     title: 'Live Load Board',
     description: 'Kanban board from PENDING to DELIVERED. Supabase Realtime — updates the moment anything changes. No refresh.',
     accentColor: '#3B82F6',
   },
   {
-    icon: '📄',
-    iconBg: 'linear-gradient(135deg, #4c1d95, #8b5cf6)',
+    Icon: IconParse,
     title: 'Rate-Con Parser',
     description: 'Forward any broker email or PDF. LoadPilot extracts origin, destination, rate, dates, commodity automatically. 95%+ accuracy.',
     accentColor: '#8B5CF6',
   },
   {
-    icon: '📈',
-    iconBg: 'linear-gradient(135deg, #7f1d1d, #ef4444)',
+    Icon: IconAnalytics,
     title: 'RPM Analytics',
     description: 'Track revenue per mile, fuel costs, and profit per load. See which lanes win and which to avoid next time.',
     accentColor: '#EF4444',
@@ -83,10 +78,14 @@ export default function Features() {
               >
                 {/* Icon */}
                 <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-                  style={{ background: f.iconBg }}
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 border"
+                  style={{
+                    background: `linear-gradient(145deg, ${f.accentColor}1F, var(--bg))`,
+                    borderColor: `${f.accentColor}40`,
+                    boxShadow: `inset 0 1px 0 rgba(255,255,255,0.06), 0 0 18px ${f.accentColor}14`,
+                  }}
                 >
-                  {f.icon}
+                  <f.Icon size={28} accent={f.accentColor} />
                 </div>
 
                 {/* Text */}
