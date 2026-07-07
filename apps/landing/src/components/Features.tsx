@@ -1,3 +1,5 @@
+import Reveal from './Reveal';
+
 const features = [
   {
     icon: '⚡',
@@ -57,48 +59,53 @@ export default function Features() {
       <div className="max-w-5xl mx-auto">
 
         <div className="mb-14">
-          <p className="text-xs font-mono tracking-widest uppercase mb-3" style={{ color: 'var(--amber)' }}>
-            Features
-          </p>
-          <h2 className="font-display text-4xl md:text-5xl font-800 leading-tight" style={{ color: '#FFFFFF' }}>
-            Built for carriers with<br />1–100 trucks.
-          </h2>
+          <Reveal variant="left">
+            <p className="text-xs font-mono tracking-widest uppercase mb-3" style={{ color: 'var(--amber)' }}>
+              Features
+            </p>
+          </Reveal>
+          <Reveal variant="blur" delay={100}>
+            <h2 className="font-display text-4xl md:text-5xl font-800 leading-tight" style={{ color: '#FFFFFF' }}>
+              Built for carriers with<br />1–100 trucks.
+            </h2>
+          </Reveal>
         </div>
 
         <div className="grid md:grid-cols-3 gap-4">
           {features.map((f, i) => (
-            <div
-              key={f.title}
-              className="rounded-2xl p-6 border flex flex-col gap-4 card-hover cursor-default"
-              style={{
-                background: 'var(--surface-2)',
-                borderColor: i === 0 ? f.accentColor + '60' : 'var(--border)',
-              }}
-            >
-              {/* Icon */}
+            <Reveal key={f.title} variant="scale" delay={(i % 3) * 120 + Math.floor(i / 3) * 80}>
               <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-                style={{ background: f.iconBg }}
+                className="rounded-2xl p-6 border flex flex-col gap-4 card-hover cursor-default h-full"
+                style={{
+                  background: 'var(--surface-2)',
+                  borderColor: i === 0 ? f.accentColor + '60' : 'var(--border)',
+                }}
               >
-                {f.icon}
-              </div>
-
-              {/* Text */}
-              <div className="flex-1">
-                <h3
-                  className="font-display font-700 text-lg mb-2 leading-snug"
-                  style={{ color: '#FFFFFF' }}
+                {/* Icon */}
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                  style={{ background: f.iconBg }}
                 >
-                  {f.title}
-                </h3>
-                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                  {f.description}
-                </p>
-              </div>
+                  {f.icon}
+                </div>
 
-              {/* Accent line */}
-              <div className="h-0.5 w-10 rounded-full" style={{ background: f.accentColor }} />
-            </div>
+                {/* Text */}
+                <div className="flex-1">
+                  <h3
+                    className="font-display font-700 text-lg mb-2 leading-snug"
+                    style={{ color: '#FFFFFF' }}
+                  >
+                    {f.title}
+                  </h3>
+                  <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                    {f.description}
+                  </p>
+                </div>
+
+                {/* Accent line */}
+                <div className="h-0.5 w-10 rounded-full" style={{ background: f.accentColor }} />
+              </div>
+            </Reveal>
           ))}
         </div>
 

@@ -1,3 +1,5 @@
+import Reveal from './Reveal';
+
 const CALENDLY_URL = 'https://calendly.com/YOUR_LINK';
 
 const starterFeatures = [
@@ -21,18 +23,23 @@ export default function Pricing() {
       <div className="max-w-5xl mx-auto">
 
         <div className="mb-14">
-          <p className="text-xs font-mono tracking-widest uppercase mb-3" style={{ color: 'var(--amber)' }}>
-            Pricing
-          </p>
-          <h2 className="font-display text-4xl md:text-5xl font-800 leading-tight" style={{ color: '#FFFFFF' }}>
-            Less than the cost of<br />one missed load.
-          </h2>
+          <Reveal variant="left">
+            <p className="text-xs font-mono tracking-widest uppercase mb-3" style={{ color: 'var(--amber)' }}>
+              Pricing
+            </p>
+          </Reveal>
+          <Reveal variant="blur" delay={100}>
+            <h2 className="font-display text-4xl md:text-5xl font-800 leading-tight" style={{ color: '#FFFFFF' }}>
+              Less than the cost of<br />one missed load.
+            </h2>
+          </Reveal>
         </div>
 
         <div className="grid md:grid-cols-3 gap-6">
 
           {/* Starter — active */}
-          <div className="md:col-span-2 rounded-2xl p-8 border relative overflow-hidden"
+          <Reveal variant="up" className="md:col-span-2">
+          <div className="rounded-2xl p-8 border relative overflow-hidden h-full"
             style={{ borderColor: 'var(--amber)', background: 'var(--surface)' }}>
 
             {/* Amber glow */}
@@ -78,9 +85,10 @@ export default function Pricing() {
               14-day free trial · No credit card required
             </p>
           </div>
+          </Reveal>
 
           {/* Coming Soon column */}
-          <div className="flex flex-col gap-4">
+          <Reveal variant="right" delay={150} className="flex flex-col gap-4">
             {comingSoon.map((plan) => (
               <div key={plan.name} className="flex-1 rounded-2xl p-6 border opacity-50"
                 style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
@@ -97,7 +105,7 @@ export default function Pricing() {
                 </div>
               </div>
             ))}
-          </div>
+          </Reveal>
 
         </div>
       </div>

@@ -1,3 +1,5 @@
+import Reveal from './Reveal';
+
 const steps = [
   {
     n: '01',
@@ -35,13 +37,17 @@ export default function HowItWorks() {
       <div className="max-w-5xl mx-auto">
 
         <div className="mb-14">
-          <p className="text-xs font-mono tracking-widest uppercase mb-3" style={{ color: 'var(--amber)' }}>
-            How it works
-          </p>
-          <h2 className="font-display text-4xl md:text-5xl font-800 leading-tight" style={{ color: '#FFFFFF' }}>
-            Broker email → WhatsApp confirm<br />
-            <span style={{ color: 'var(--amber)' }}>in under 60 seconds.</span>
-          </h2>
+          <Reveal variant="left">
+            <p className="text-xs font-mono tracking-widest uppercase mb-3" style={{ color: 'var(--amber)' }}>
+              How it works
+            </p>
+          </Reveal>
+          <Reveal variant="blur" delay={100}>
+            <h2 className="font-display text-4xl md:text-5xl font-800 leading-tight" style={{ color: '#FFFFFF' }}>
+              Broker email → WhatsApp confirm<br />
+              <span style={{ color: 'var(--amber)' }}>in under 60 seconds.</span>
+            </h2>
+          </Reveal>
         </div>
 
         <div className="relative">
@@ -50,32 +56,34 @@ export default function HowItWorks() {
 
           <div className="space-y-2">
             {steps.map((step, i) => (
-              <div key={step.n} className="flex gap-6 items-start p-6 rounded-xl border transition-all card-hover"
-                style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+              <Reveal key={step.n} variant={i % 2 === 0 ? 'left' : 'right'} delay={80}>
+                <div className="flex gap-6 items-start p-6 rounded-xl border transition-all card-hover"
+                  style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
 
-                {/* Number node */}
-                <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-mono text-sm font-700 border z-10"
-                  style={{ background: 'var(--bg)', borderColor: 'var(--amber)', color: 'var(--amber)' }}>
-                  {step.n}
-                </div>
+                  {/* Number node */}
+                  <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-mono text-sm font-700 border z-10"
+                    style={{ background: 'var(--bg)', borderColor: 'var(--amber)', color: 'var(--amber)' }}>
+                    {step.n}
+                  </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-4 flex-wrap">
-                    <div>
-                      <h3 className="font-display font-700 text-lg mb-2" style={{ color: 'var(--text)' }}>
-                        {step.emoji} {step.title}
-                      </h3>
-                      <p className="text-sm leading-relaxed max-w-lg" style={{ color: 'var(--text-muted)' }}>
-                        {step.description}
-                      </p>
-                    </div>
-                    <div className="font-mono text-xs px-3 py-1.5 rounded border whitespace-nowrap flex-shrink-0"
-                      style={{ borderColor: 'var(--border-lit)', color: 'var(--text-muted)', background: 'var(--surface-2)' }}>
-                      {step.detail}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                      <div>
+                        <h3 className="font-display font-700 text-lg mb-2" style={{ color: '#FFFFFF' }}>
+                          {step.emoji} {step.title}
+                        </h3>
+                        <p className="text-sm leading-relaxed max-w-lg" style={{ color: 'var(--text-muted)' }}>
+                          {step.description}
+                        </p>
+                      </div>
+                      <div className="font-mono text-xs px-3 py-1.5 rounded border whitespace-nowrap flex-shrink-0"
+                        style={{ borderColor: 'var(--border-lit)', color: 'var(--text-muted)', background: 'var(--surface-2)' }}>
+                        {step.detail}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>

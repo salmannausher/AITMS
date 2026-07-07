@@ -1,9 +1,12 @@
+import Reveal from './Reveal';
+
 const CALENDLY_URL = 'https://calendly.com/YOUR_LINK';
 
 export default function FooterCTA() {
   return (
     <section className="py-20 px-6" style={{ borderTop: '1px solid var(--border)' }}>
       <div className="max-w-5xl mx-auto">
+        <Reveal variant="scale">
         <div className="rounded-2xl p-10 md:p-16 text-center relative overflow-hidden border"
           style={{ borderColor: 'var(--amber)', background: 'var(--surface)' }}>
 
@@ -34,6 +37,7 @@ export default function FooterCTA() {
             Founder&apos;s Rate — $199/mo locked in forever for the first 20 carriers
           </p>
         </div>
+        </Reveal>
       </div>
     </section>
   );
