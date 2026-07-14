@@ -33,5 +33,5 @@ CREATE POLICY "authenticated can read own company loads"
   FOR SELECT
   TO authenticated
   USING (
-    company_id = (auth.jwt() -> 'app_metadata' ->> 'company_id')::uuid
+    company_id = (auth.jwt() -> 'app_metadata' ->> 'company_id')
   );
